@@ -76,7 +76,7 @@ class IPIntelligence:
                 import requests
 
                 r = requests.get(url, timeout=self.config.api_timeout,
-                                  headers={"User-Agent": "VoIPAnalyzer/3.1.0"})
+                                  headers={"User-Agent": "VoIPAnalyzer/3.2.0"})
             d = r.json()
             if d.get("status") == "success":
                 info.isp = d.get("isp", "Unknown")

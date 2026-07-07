@@ -22,7 +22,7 @@ except ImportError:  # pragma: no cover - requests is a hard dependency
 def build_session(
     timeout: int = 5,
     retries: int = 3,
-    user_agent: str = "VoIPAnalyzer/3.1.0",
+    user_agent: str = "VoIPAnalyzer/3.2.0",
 ) -> Optional["requests.Session"]:
     """Return a configured ``requests.Session``, or ``None`` if requests missing."""
     if not _HAVE_REQUESTS:

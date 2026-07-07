@@ -1,6 +1,6 @@
 [Setup]
 AppName=Cutter - VoIP Analyzer
-AppVersion=3.1.0
+AppVersion=3.2.0
 AppPublisher=VoIP Analyzer Team
 DefaultDirName={autopf}\Cutter
 DefaultGroupName=Cutter

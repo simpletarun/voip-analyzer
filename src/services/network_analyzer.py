@@ -66,7 +66,7 @@ class NetworkAnalyzer:
             r = self._session.get(
                 f"https://ip-api.com/json/{self.my_public_ip}"
                 "?fields=isp,city,country,lat,lon", timeout=5,
-                headers={"User-Agent": "VoIPAnalyzer/3.1.0"})
+                headers={"User-Agent": "VoIPAnalyzer/3.2.0"})
             d = r.json()
             if d.get("status") == "success":
                 self.my_isp = d.get("isp", "Unknown")
