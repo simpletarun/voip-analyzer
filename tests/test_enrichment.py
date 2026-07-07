@@ -38,3 +38,24 @@ def test_plugin_metadata_shape():
     assert meta["name"] == "dummy"
     assert meta["version"] == "0.1.0"
     assert meta["requires_key"] is False
+
+
+def test_enrich_many_async():
+    import asyncio
+
+    from src.enrichment.manager import EnrichmentManager
+
+    mgr = EnrichmentManager(config=None)
+    mgr.plugins = [_DummyPlugin()]
+    out = asyncio.run(mgr.enrich_many(["8.8.8.8", "1.1.1.1"]))
+    assert set(out.keys()) == {"8.8.8.8", "1.1.1.1"}
+    assert out["8.8.8.8"]["dummy_seen"] == "8.8.8.8"
+
+
+def test_enrich_ips_sync():
+    from src.enrichment.manager import EnrichmentManager
+
+    mgr = EnrichmentManager(config=None)
+    mgr.plugins = [_DummyPlugin()]
+    out = mgr.enrich_ips(["9.9.9.9"])
+    assert out["9.9.9.9"]["dummy_seen"] == "9.9.9.9"

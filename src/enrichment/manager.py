@@ -4,11 +4,12 @@ Plugins live in ``src/enrichment/`` and are discovered automatically. All
 ``search`` calls are dispatched concurrently via :class:`WorkerPool`.
 """
 
+import asyncio
 import importlib
 import logging
 import os
 import pkgutil
-from typing import Any, Dict, List, Optional
+from typing import Any, Dict, Iterable, List, Optional
 
 from src.enrichment.base import EnrichmentPlugin
 from src.utils.concurrency import WorkerPool
@@ -76,3 +77,23 @@ class EnrichmentManager:
         except Exception as exc:  # noqa: BLE001
             logger.warning("%s enrichment failed for %s: %s", plugin.name, ip, exc)
             return None
+
+    def enrich_ips(self, ips: Iterable[str]) -> Dict[str, Dict[str, Any]]:
+        """Synchronous bulk wrapper (convenient for scripts/tests)."""
+        return {ip: self.enrich(ip) for ip in ips}
+
+    async def enrich_many(self, ips: Iterable[str]) -> Dict[str, Dict[str, Any]]:
+        """Async bulk enrichment.
+
+        Each IP's plugin set is resolved off the main thread via
+        ``asyncio.to_thread``, so this scales to thousands of addresses without
+        blocking (the upgrade path recommended by the audit).
+        """
+        ip_list = list(ips)
+        tasks = [asyncio.to_thread(self.enrich, ip) for ip in ip_list]
+        results = await asyncio.gather(*tasks, return_exceptions=True)
+        merged: Dict[str, Dict[str, Any]] = {}
+        for ip, res in zip(ip_list, results):
+            if isinstance(res, dict):
+                merged[ip] = res
+        return merged

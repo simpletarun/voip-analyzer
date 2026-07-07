@@ -30,7 +30,7 @@ from src.models.packet import PacketInfo
 from src.models.session import SessionReport
 from src.plugins.whatsapp import WhatsAppPlugin
 from src.services.capturer import PacketCapturer
-from src.services.ip_intel import IPIntelligence
+from src.composition import build_stack
 from src.ui.dialogs import IPDetailDialog
 from src.ui.theme import ThemeEngine
 
@@ -81,9 +81,10 @@ class VoIPAnalyzerGUI(QMainWindow):
         super().__init__()
         self.config = config
         self.db = DatabaseConnection(config.db_path)
-        self.session_repo = SessionRepository(self.db)
-        self.peer_repo = PeerRepository(self.db)
-        self.cache_repo = CacheRepository(self.db)
+        self.stack = build_stack(config, self.db)
+        self.session_repo = self.stack.session_repo
+        self.peer_repo = self.stack.peer_repo
+        self.cache_repo = self.stack.cache_repo
         self.capturer: Optional[PacketCapturer] = None
         self.all_data: Dict[str, Dict] = {}
         self.countries: set = set()
@@ -372,10 +373,8 @@ class VoIPAnalyzerGUI(QMainWindow):
                                  "Scapy is not installed.\n\npip install scapy")
             return
 
-        intel_service = IPIntelligence(self.cache_repo, self.config,
-                                       enrichment_manager=self._enrichment_manager())
         self.capturer = PacketCapturer(self.config, self.session_repo, self.peer_repo,
-                                       intel_service)
+                                       self.stack.ip_intel)
 
         self.capturer.on("packet", self._on_packet)
         self.capturer.on("new_peer", lambda *a: self._enqueue_ui_event("_on_new_peer", *a))
@@ -404,13 +403,6 @@ class VoIPAnalyzerGUI(QMainWindow):
         self.status_lbl.setStyleSheet("color: #0f0; font-weight: bold;")
         self._log("Capture started. Make a call.")
         self._log("Your IP is filtered out.")
-
-    def _enrichment_manager(self):
-        from src.enrichment.manager import EnrichmentManager
-
-        if getattr(self, "_enrichment", None) is None:
-            self._enrichment = EnrichmentManager(self.config)
-        return self._enrichment
 
     def stop_capture(self) -> None:
         if not self.capturer:
