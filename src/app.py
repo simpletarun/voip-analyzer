@@ -2,7 +2,6 @@ import logging
 import logging.handlers
 import os
 import sys
-from typing import Optional
 
 from PyQt6.QtWidgets import QApplication, QMessageBox
 
@@ -72,7 +71,7 @@ def show_disclaimer() -> bool:
     return msg.exec() == QMessageBox.StandardButton.Ok
 
 
-def create_app(config: Optional[AppConfig] = None) -> QApplication:
+def create_app(config: AppConfig | None = None) -> QApplication:
     app = QApplication(sys.argv)
     app.setStyle("Fusion")
     if config is None:

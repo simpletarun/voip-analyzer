@@ -1,7 +1,6 @@
 import json
 import logging
 from dataclasses import asdict
-from typing import Dict
 
 from src.export.base import Exporter
 from src.models.session import SessionReport
@@ -10,7 +9,7 @@ logger = logging.getLogger(__name__)
 
 
 class JsonExporter(Exporter):
-    def export(self, report: SessionReport, peers: Dict[str, Dict], path: str) -> bool:
+    def export(self, report: SessionReport, peers: dict[str, dict], path: str) -> bool:
         try:
             data = {
                 "report": asdict(report),

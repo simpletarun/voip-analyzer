@@ -2,8 +2,6 @@ import logging
 import os
 import sqlite3
 import threading
-from datetime import datetime, timedelta, timezone
-from typing import Optional
 
 from src import __db_schema_version__
 
@@ -14,7 +12,7 @@ class DatabaseConnection:
     def __init__(self, path: str):
         self.path = path
         self._lock = threading.Lock()
-        self.conn: Optional[sqlite3.Connection] = None
+        self.conn: sqlite3.Connection | None = None
         self._init()
 
     def _init(self) -> None:

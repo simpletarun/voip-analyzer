@@ -1,8 +1,7 @@
 import json
 import os
 import sys
-from dataclasses import dataclass, field, asdict
-from typing import List, Optional, Tuple
+from dataclasses import asdict, dataclass, field
 
 from dotenv import load_dotenv
 
@@ -42,7 +41,7 @@ class AppConfig:
     language: str = "en"
     interface: str = ""
     data_retention_days: int = 90
-    whatsapp_ports: List[Tuple[int, int]] = field(default_factory=lambda: [
+    whatsapp_ports: list[tuple[int, int]] = field(default_factory=lambda: [
         (55221, 55427), (10000, 20000), (3478, 3479),
         (4048, 4050), (5000, 5004), (8000, 9000),
         (49152, 65535), (443, 443),
@@ -74,17 +73,18 @@ class AppConfig:
             self.log_level = "INFO"
 
     @classmethod
-    def load(cls, path: Optional[str] = None) -> "AppConfig":
+    def load(cls, path: str | None = None) -> "AppConfig":
         cfg = cls()
         if path is None:
             path = _resolve_path("config/config.json")
             if not os.path.exists(path) and getattr(sys, 'frozen', False):
-                bundled = os.path.join(os.path.dirname(sys.executable), '_internal', 'config', 'config.json')
+                exe_dir = os.path.dirname(sys.executable)
+                bundled = os.path.join(exe_dir, '_internal', 'config', 'config.json')
                 if os.path.exists(bundled):
                     path = bundled
         if os.path.exists(path):
             try:
-                with open(path, "r", encoding="utf-8") as f:
+                with open(path, encoding="utf-8") as f:
                     data = json.load(f)
                 for k, v in data.items():
                     if hasattr(cfg, k):
@@ -119,7 +119,7 @@ class AppConfig:
                 except (ValueError, TypeError):
                     pass
 
-    def save(self, path: Optional[str] = None) -> None:
+    def save(self, path: str | None = None) -> None:
         if path is None:
             path = _resolve_path("config/config.json")
         try:

@@ -2,7 +2,7 @@ import logging
 import socket
 import threading
 import time
-from typing import Any, Dict, List, Optional
+from typing import Any
 
 from src.config import AppConfig
 from src.database.repository import CacheRepository
@@ -27,16 +27,15 @@ class IPIntelligence:
         self.cache = cache_repo
         self.config = config
         self.enrichment = enrichment_manager
-        self.memory_cache: Dict[str, IPInfo] = {}
+        self.memory_cache: dict[str, IPInfo] = {}
         self._lock = threading.Lock()
-        self._calls: List[float] = []
+        self._calls: list[float] = []
         self._pool = WorkerPool(max_workers=getattr(config, "max_api_calls_per_min", 40) or 8)
         self._session = build_session(getattr(config, "api_timeout", 5) or 5)
 
     def _can_call(self) -> bool:
-        try:
-            import requests
-        except ImportError:
+        import importlib.util
+        if importlib.util.find_spec("requests") is None:
             return False
         now = time.time()
         with self._lock:

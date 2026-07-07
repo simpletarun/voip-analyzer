@@ -1,12 +1,19 @@
 import logging
 import webbrowser
-from typing import Dict
 
 from PyQt6.QtCore import Qt
-from PyQt6.QtGui import QAction, QClipboard
 from PyQt6.QtWidgets import (
-    QApplication, QDialog, QDialogButtonBox, QFormLayout, QFrame,
-    QHBoxLayout, QLabel, QPushButton, QScrollArea, QVBoxLayout, QWidget,
+    QApplication,
+    QDialog,
+    QDialogButtonBox,
+    QFormLayout,
+    QFrame,
+    QHBoxLayout,
+    QLabel,
+    QPushButton,
+    QScrollArea,
+    QVBoxLayout,
+    QWidget,
 )
 
 from src.models.ip_info import IPInfo
@@ -16,7 +23,7 @@ logger = logging.getLogger(__name__)
 
 
 class IPDetailDialog(QDialog):
-    def __init__(self, parent, ip: str, intel: IPInfo, stats: Dict, ip_type: str):
+    def __init__(self, parent, ip: str, intel: IPInfo, stats: dict, ip_type: str):
         super().__init__(parent)
         self.setWindowTitle(f"IP Detail: {ip}")
         self.setMinimumSize(550, 500)

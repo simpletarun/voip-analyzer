@@ -1,6 +1,5 @@
 """Tests for shared utilities: validation and concurrency."""
 
-import time
 
 import pytest
 

@@ -4,7 +4,7 @@ import threading
 import time
 from collections import defaultdict
 from datetime import datetime, timezone
-from typing import Any, Dict, Optional, Tuple
+from typing import Any
 
 from src.config import AppConfig
 from src.database.repository import PeerRepository, SessionRepository
@@ -19,7 +19,7 @@ logger = logging.getLogger(__name__)
 
 HAS_SCAPY = False
 try:
-    from scapy.all import IP, IPv6, Raw, TCP, UDP, conf, sniff
+    from scapy.all import IP, TCP, UDP, IPv6, Raw, conf, sniff
     conf.verb = 0
     HAS_SCAPY = True
 except ImportError:
@@ -39,24 +39,24 @@ class PacketCapturer:
         self.intel = intel_service
         self.plugins = PluginManager()
 
-        self._resolver_queue: "queue.Queue[str]" = queue.Queue()
-        self._packet_queue: "queue.Queue[PacketInfo]" = queue.Queue()
+        self._resolver_queue: queue.Queue[str] = queue.Queue()
+        self._packet_queue: queue.Queue[PacketInfo] = queue.Queue()
         self._stop_event = threading.Event()
 
         self.running = False
         self.captured = 0
         self.total_bytes = 0
-        self.start_time: Optional[float] = None
+        self.start_time: float | None = None
         self._lock = threading.Lock()
-        self._ip_stats: Dict[str, Dict] = defaultdict(
+        self._ip_stats: dict[str, dict] = defaultdict(
             lambda: {"packets": 0, "bytes": 0, "inbound": 0, "outbound": 0,
                      "stun": 0, "first_seen": "", "last_seen": ""}
         )
-        self._all_ips: Dict[str, IPInfo] = {}
+        self._all_ips: dict[str, IPInfo] = {}
         self._p2p_candidates: set = set()
         self._relay_ips: set = set()
         self._mode: str = "UNKNOWN"
-        self._signal_callbacks: Dict[str, list] = defaultdict(list)
+        self._signal_callbacks: dict[str, list] = defaultdict(list)
 
     def on(self, event: str, callback) -> None:
         self._signal_callbacks[event].append(callback)
@@ -247,7 +247,7 @@ class PacketCapturer:
         self._emit("status", self._mode, p2p, relay)
 
     def get_report(self) -> SessionReport:
-        snapshot_peers: Dict[str, Tuple[IPInfo, Dict, str]] = {}
+        snapshot_peers: dict[str, tuple[IPInfo, dict, str]] = {}
         with self._lock:
             duration = (time.time() - self.start_time) if self.start_time else 0
             countries = set()
@@ -280,7 +280,7 @@ class PacketCapturer:
             protocol="WhatsApp"
         )
 
-    def get_live_stats(self) -> Tuple[int, float, float, int, int, float]:
+    def get_live_stats(self) -> tuple[int, float, float, int, int, float]:
         with self._lock:
             elapsed = (time.time() - self.start_time) if self.start_time else 1
             elapsed = max(elapsed, 0.1)

@@ -6,31 +6,46 @@ import re
 import threading
 import time
 from datetime import datetime
-from typing import Any, Dict, Optional, Pattern
+from re import Pattern
 
 from PyQt6.QtCore import Qt, QTimer, QUrl
-from PyQt6.QtGui import QAction, QColor, QKeySequence
+from PyQt6.QtGui import QAction, QColor, QDesktopServices, QKeySequence
 from PyQt6.QtWidgets import (
-    QApplication, QComboBox, QFileDialog, QFrame, QHBoxLayout, QHeaderView,
-    QLabel, QLineEdit, QMainWindow, QMenuBar, QMessageBox, QPlainTextEdit,
-    QPushButton, QProgressBar, QSplitter, QTabWidget, QTableWidget, QTextBrowser,
-    QTableWidgetItem, QVBoxLayout, QWidget,
+    QApplication,
+    QComboBox,
+    QFileDialog,
+    QFrame,
+    QHBoxLayout,
+    QLabel,
+    QLineEdit,
+    QMainWindow,
+    QMessageBox,
+    QPlainTextEdit,
+    QProgressBar,
+    QPushButton,
+    QSplitter,
+    QTableWidget,
+    QTableWidgetItem,
+    QTabWidget,
+    QVBoxLayout,
+    QWidget,
 )
-from PyQt6.QtGui import QDesktopServices
 
 from src import __version__
+from src.composition import build_stack
 from src.config import AppConfig
 from src.database.connection import DatabaseConnection
-from src.database.repository import CacheRepository, PeerRepository, SessionRepository
-from src.export.html_exporter import HtmlExporter
 from src.export.csv_exporter import CsvExporter
+from src.export.excel_exporter import ExcelExporter
+from src.export.html_exporter import HtmlExporter
 from src.export.json_exporter import JsonExporter
+from src.export.markdown_exporter import MarkdownExporter
+from src.export.pdf_exporter import PdfExporter
 from src.models.ip_info import IPInfo
 from src.models.packet import PacketInfo
 from src.models.session import SessionReport
 from src.plugins.whatsapp import WhatsAppPlugin
 from src.services.capturer import PacketCapturer
-from src.composition import build_stack
 from src.ui.dialogs import IPDetailDialog
 from src.ui.theme import ThemeEngine
 
@@ -68,7 +83,7 @@ except ImportError:
 
 _RE_THREAD = concurrent.futures.ThreadPoolExecutor(max_workers=1)
 
-def _safe_compile_regex(pattern: str, timeout: float = 0.5) -> Optional[Pattern]:
+def _safe_compile_regex(pattern: str, timeout: float = 0.5) -> Pattern | None:
     try:
         future = _RE_THREAD.submit(lambda: re.compile(pattern, re.IGNORECASE))
         return future.result(timeout=timeout)
@@ -85,10 +100,10 @@ class VoIPAnalyzerGUI(QMainWindow):
         self.session_repo = self.stack.session_repo
         self.peer_repo = self.stack.peer_repo
         self.cache_repo = self.stack.cache_repo
-        self.capturer: Optional[PacketCapturer] = None
-        self.all_data: Dict[str, Dict] = {}
+        self.capturer: PacketCapturer | None = None
+        self.all_data: dict[str, dict] = {}
         self.countries: set = set()
-        self._uptime_start: Optional[float] = None
+        self._uptime_start: float | None = None
         self._last_primary_ip: str = ""
         self._pkt_buffer: list = []
         self._buf_lock = threading.Lock()
@@ -505,11 +520,11 @@ class VoIPAnalyzerGUI(QMainWindow):
         self.pkt_lbl.setText(f"PKT: {batch[-1].id}")
         self._apply_filter()
 
-    def _on_new_peer(self, ip: str, intel: IPInfo, stats: Dict, ip_type: str) -> None:
+    def _on_new_peer(self, ip: str, intel: IPInfo, stats: dict, ip_type: str) -> None:
         self.all_data[ip] = {"intel": intel, "stats": stats, "type": ip_type, "score": 0}
         self._log(f"NEW IP: {ip} (resolving...)")
 
-    def _on_peer_update(self, ip: str, intel: IPInfo, stats: Dict, ip_type: str) -> None:
+    def _on_peer_update(self, ip: str, intel: IPInfo, stats: dict, ip_type: str) -> None:
         old = self.all_data.get(ip, {})
         old_type = old.get("type", "UNKNOWN")
         score = WhatsAppPlugin.peer_confidence(intel, stats)
@@ -597,7 +612,7 @@ class VoIPAnalyzerGUI(QMainWindow):
 
     @staticmethod
     def _update_ip_row(table: QTableWidget, row: int, ip: str,
-                       intel: IPInfo, stats: Dict, color: QColor,
+                       intel: IPInfo, stats: dict, color: QColor,
                        score: int = 0) -> None:
         ver_str = "v6" if intel.is_ipv6 else "v4"
         is_p2p = (table.columnCount() >= 11)
@@ -949,8 +964,9 @@ class VoIPAnalyzerGUI(QMainWindow):
                                     "folium not installed.\npip install folium")
             return
         try:
-            import folium
             import tempfile
+
+            import folium
             lat, lon, my_ip = self._my_lat, self._my_lon, self._my_ip
             m = folium.Map(location=[lat, lon], zoom_start=2,
                            tiles="CartoDB dark_matter")

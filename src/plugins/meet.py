@@ -1,4 +1,4 @@
-from typing import Any, Dict
+from typing import Any
 
 from src.models.ip_info import IPInfo
 from src.plugins.base import ProtocolPlugin
@@ -8,7 +8,7 @@ class MeetPlugin(ProtocolPlugin):
     name = "Google Meet"
     MEET_PORTS = {19302, 19303, 19304, 19305, 19306, 19307, 19308, 19309}
 
-    def identify(self, pkt: Any, peer: str, stats: Dict, intel: IPInfo) -> str:
+    def identify(self, pkt: Any, peer: str, stats: dict, intel: IPInfo) -> str:
         if self._has_meet_port(pkt):
             if intel.classification == "USER" or stats.get("inbound", 0) > 5:
                 return "P2P_PEER"

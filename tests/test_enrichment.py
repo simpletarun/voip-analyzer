@@ -5,8 +5,8 @@ assert the framework behaviour (discovery, availability gating, concurrency,
 safe error handling) which works with no keys configured.
 """
 
-from src.enrichment.manager import EnrichmentManager
 from src.enrichment.base import EnrichmentPlugin
+from src.enrichment.manager import EnrichmentManager
 
 
 class _DummyPlugin(EnrichmentPlugin):

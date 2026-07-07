@@ -10,7 +10,7 @@ or commit keys). If the required key is absent the plugin simply reports
 ``is_available() == False`` and is skipped.
 """
 
-from typing import Any, Dict, Optional
+from typing import Any
 
 
 class EnrichmentPlugin:
@@ -26,7 +26,7 @@ class EnrichmentPlugin:
         """Return True if the plugin can run (e.g. required key present)."""
         return True
 
-    def search(self, ip: str) -> Dict[str, Any]:
+    def search(self, ip: str) -> dict[str, Any]:
         """Return a flat dict of enrichment fields for ``ip``.
 
         Implementations must never raise; on failure return an empty dict and
@@ -34,7 +34,7 @@ class EnrichmentPlugin:
         """
         return {}
 
-    def metadata(self) -> Dict[str, Any]:
+    def metadata(self) -> dict[str, Any]:
         return {
             "name": self.name,
             "version": self.version,

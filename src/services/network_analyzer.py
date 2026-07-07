@@ -1,7 +1,6 @@
 import ipaddress
 import logging
 import socket
-from typing import Optional
 
 from src.utils.http import build_session
 
@@ -10,10 +9,10 @@ logger = logging.getLogger(__name__)
 
 class NetworkAnalyzer:
     def __init__(self):
-        self.my_public_ip: Optional[str] = None
-        self.my_public_ip_v6: Optional[str] = None
+        self.my_public_ip: str | None = None
+        self.my_public_ip_v6: str | None = None
         self.my_local_ip: str = "127.0.0.1"
-        self.my_local_ip_v6: Optional[str] = None
+        self.my_local_ip_v6: str | None = None
         self.my_isp: str = "Unknown"
         self.my_lat: float = 20.0
         self.my_lon: float = 0.0
@@ -76,7 +75,7 @@ class NetworkAnalyzer:
         except Exception:
             pass
 
-    def is_my_ip(self, ip: Optional[str]) -> bool:
+    def is_my_ip(self, ip: str | None) -> bool:
         if not ip:
             return False
         if ip in (self.my_public_ip, self.my_local_ip,

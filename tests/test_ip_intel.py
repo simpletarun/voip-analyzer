@@ -1,5 +1,4 @@
 """Tests for IPIntelligence scoring algorithm."""
-import pytest
 from src.models.ip_info import IPInfo
 from src.services.ip_intel import IPIntelligence
 

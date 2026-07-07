@@ -8,7 +8,8 @@ configuration and shuts down cleanly on context exit.
 import concurrent.futures
 import logging
 import threading
-from typing import Callable, Iterable, List, Optional, TypeVar
+from collections.abc import Callable, Iterable
+from typing import TypeVar
 
 T = TypeVar("T")
 R = TypeVar("R")
@@ -19,7 +20,7 @@ logger = logging.getLogger(__name__)
 class WorkerPool:
     def __init__(self, max_workers: int = 8) -> None:
         self._max_workers = max(1, max_workers)
-        self._executor: Optional[concurrent.futures.ThreadPoolExecutor] = None
+        self._executor: concurrent.futures.ThreadPoolExecutor | None = None
         self._lock = threading.Lock()
 
     def _ensure(self) -> concurrent.futures.ThreadPoolExecutor:
@@ -30,7 +31,7 @@ class WorkerPool:
                 )
             return self._executor
 
-    def map(self, func: Callable[[T], R], items: Iterable[T]) -> List[R]:
+    def map(self, func: Callable[[T], R], items: Iterable[T]) -> list[R]:
         """Run ``func`` over ``items`` concurrently.
 
         Failures are logged and yield ``None`` so one bad item does not abort
@@ -42,7 +43,7 @@ class WorkerPool:
         try:
             with self._ensure() as ex:
                 futures = [ex.submit(func, item) for item in items]
-                results: List[R] = []
+                results: list[R] = []
                 for fut in concurrent.futures.as_completed(futures):
                     try:
                         results.append(fut.result())

@@ -6,7 +6,6 @@ constructors (dependency injection), which keeps the UI thin and makes the
 stack trivial to mock in tests.
 """
 
-from typing import Optional
 
 from src.config import AppConfig
 from src.database.connection import DatabaseConnection
@@ -33,8 +32,8 @@ class AnalysisStack:
 
 
 def build_stack(
-    config: Optional[AppConfig] = None,
-    db: Optional[DatabaseConnection] = None,
+    config: AppConfig | None = None,
+    db: DatabaseConnection | None = None,
 ) -> AnalysisStack:
     if config is None:
         config = AppConfig.load()

@@ -1,5 +1,5 @@
-from dataclasses import dataclass, asdict, field
-from typing import Any, Dict, Optional
+from dataclasses import asdict, dataclass, field
+from typing import Any
 
 
 @dataclass
@@ -16,17 +16,17 @@ class IPInfo:
     is_proxy: bool = False
     is_hosting: bool = False
     is_mobile: bool = False
-    reverse_dns: Optional[str] = None
+    reverse_dns: str | None = None
     score: int = 0
     classification: str = "UNKNOWN"
     confidence: float = 0.0
-    cached_at: Optional[str] = None
-    abuse_score: Optional[int] = None
-    fraud_score: Optional[int] = None
+    cached_at: str | None = None
+    abuse_score: int | None = None
+    fraud_score: int | None = None
     is_vpn: bool = False
     is_tor: bool = False
     open_ports: list = field(default_factory=list)
-    enrichment: Dict[str, Any] = field(default_factory=dict)
+    enrichment: dict[str, Any] = field(default_factory=dict)
 
-    def to_dict(self) -> Dict[str, object]:
+    def to_dict(self) -> dict[str, object]:
         return asdict(self)

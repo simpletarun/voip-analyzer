@@ -1,15 +1,16 @@
 """Tests for database repositories."""
-import json
 import os
 import tempfile
 from datetime import datetime, timezone
+
 import pytest
 
-_UTC = timezone.utc
 from src.database.connection import DatabaseConnection
-from src.database.repository import SessionRepository, PeerRepository, CacheRepository
-from src.models.session import SessionReport
+from src.database.repository import CacheRepository, PeerRepository, SessionRepository
 from src.models.ip_info import IPInfo
+from src.models.session import SessionReport
+
+_UTC = timezone.utc
 
 
 @pytest.fixture

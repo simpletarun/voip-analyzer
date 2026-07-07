@@ -1,7 +1,6 @@
 """PDF report exporter (requires reportlab)."""
 
 import logging
-from typing import Dict
 
 from src.export.base import Exporter
 from src.models.session import SessionReport
@@ -12,15 +11,15 @@ HAS_REPORTLAB = False
 try:
     from reportlab.lib import colors
     from reportlab.lib.pagesizes import A4
-    from reportlab.lib.styles import getSampleStyleSheet, ParagraphStyle
-    from reportlab.platypus import SimpleDocTemplate, Paragraph, Spacer, Table
+    from reportlab.lib.styles import getSampleStyleSheet
+    from reportlab.platypus import Paragraph, SimpleDocTemplate, Spacer, Table
     HAS_REPORTLAB = True
 except ImportError:
     pass
 
 
 class PdfExporter(Exporter):
-    def export(self, report: SessionReport, peers: Dict[str, Dict], path: str) -> bool:
+    def export(self, report: SessionReport, peers: dict[str, dict], path: str) -> bool:
         if not HAS_REPORTLAB:
             logger.error("reportlab not installed - cannot export PDF")
             return False

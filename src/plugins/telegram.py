@@ -1,4 +1,4 @@
-from typing import Any, Dict
+from typing import Any
 
 from src.models.ip_info import IPInfo
 from src.plugins.base import ProtocolPlugin
@@ -8,9 +8,9 @@ class TelegramPlugin(ProtocolPlugin):
     name = "Telegram"
     TG_PORTS = {443, 8080}
 
-    def identify(self, pkt: Any, peer: str, stats: Dict, intel: IPInfo) -> str:
+    def identify(self, pkt: Any, peer: str, stats: dict, intel: IPInfo) -> str:
         try:
-            from scapy.all import Raw, TCP
+            from scapy.all import TCP
             if pkt.haslayer(TCP):
                 dport = pkt[TCP].dport
                 if dport in self.TG_PORTS:
@@ -26,7 +26,7 @@ class TelegramPlugin(ProtocolPlugin):
 
     def describe(self, pkt: Any) -> str:
         try:
-            from scapy.all import Raw, TCP
+            from scapy.all import TCP, Raw
             if pkt.haslayer(TCP) and pkt[TCP].dport in self.TG_PORTS:
                 if pkt.haslayer(Raw):
                     return "Telegram-DC"

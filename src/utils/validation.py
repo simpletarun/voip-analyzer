@@ -7,7 +7,6 @@ for injection-style bugs.
 """
 
 import re
-from typing import Optional
 
 from src.utils.errors import ValidationError
 
@@ -54,7 +53,7 @@ def is_public_ip(value: str) -> bool:
     )
 
 
-def sanitize_text(value: Optional[str], max_len: int = 200) -> str:
+def sanitize_text(value: str | None, max_len: int = 200) -> str:
     """Strip control characters and clamp length for safe display/storage."""
     if not value:
         return ""

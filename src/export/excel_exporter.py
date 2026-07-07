@@ -1,7 +1,6 @@
 """Excel report exporter (requires openpyxl)."""
 
 import logging
-from typing import Dict
 
 from src.export.base import Exporter
 from src.models.session import SessionReport
@@ -18,7 +17,7 @@ except ImportError:
 
 
 class ExcelExporter(Exporter):
-    def export(self, report: SessionReport, peers: Dict[str, Dict], path: str) -> bool:
+    def export(self, report: SessionReport, peers: dict[str, dict], path: str) -> bool:
         if not HAS_OPENPYXL:
             logger.error("openpyxl not installed - cannot export Excel")
             return False

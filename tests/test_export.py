@@ -2,11 +2,12 @@
 import json
 import os
 import tempfile
+
 from src.export.csv_exporter import CsvExporter
-from src.export.json_exporter import JsonExporter
 from src.export.html_exporter import HtmlExporter
-from src.models.session import SessionReport
+from src.export.json_exporter import JsonExporter
 from src.models.ip_info import IPInfo
+from src.models.session import SessionReport
 
 
 def _make_peers():
@@ -43,7 +44,7 @@ class TestCsvExporter:
         try:
             result = CsvExporter().export(_make_report(), _make_peers(), tmp)
             assert result is True
-            with open(tmp, "r") as f:
+            with open(tmp) as f:
                 content = f.read()
             assert "Session Report" in content
             assert "8.8.8.8" in content
@@ -61,7 +62,7 @@ class TestJsonExporter:
         try:
             result = JsonExporter().export(_make_report(), _make_peers(), tmp)
             assert result is True
-            with open(tmp, "r") as f:
+            with open(tmp) as f:
                 data = json.load(f)
             assert "report" in data
             assert "peers" in data
@@ -78,7 +79,7 @@ class TestJsonExporter:
         try:
             result = JsonExporter().export(_make_report(), {}, tmp)
             assert result is True
-            with open(tmp, "r") as f:
+            with open(tmp) as f:
                 data = json.load(f)
             assert data["peers"] == {}
         finally:
@@ -94,7 +95,7 @@ class TestHtmlExporter:
         try:
             result = HtmlExporter().export(_make_report(), _make_peers(), tmp)
             assert result is True
-            with open(tmp, "r", encoding="utf-8") as f:
+            with open(tmp, encoding="utf-8") as f:
                 content = f.read()
             assert "<!DOCTYPE html>" in content
             assert "VoIP Analysis Report" in content
@@ -123,7 +124,7 @@ class TestHtmlExporter:
         try:
             result = HtmlExporter().export(_make_report(), peers, tmp)
             assert result is True
-            with open(tmp, "r", encoding="utf-8") as f:
+            with open(tmp, encoding="utf-8") as f:
                 content = f.read()
             assert "&lt;script&gt;" in content
             assert "<script>" not in content

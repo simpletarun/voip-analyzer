@@ -1,5 +1,5 @@
 import ipaddress
-from typing import Any, Dict
+from typing import Any
 
 from src.models.ip_info import IPInfo
 from src.plugins.base import ProtocolPlugin
@@ -47,7 +47,7 @@ class WhatsAppPlugin(ProtocolPlugin):
         return False
 
     @staticmethod
-    def peer_confidence(intel: IPInfo, stats: Dict) -> int:
+    def peer_confidence(intel: IPInfo, stats: dict) -> int:
         score = 0
         inb = stats.get("inbound", 0)
         outb = stats.get("outbound", 0)
@@ -81,7 +81,7 @@ class WhatsAppPlugin(ProtocolPlugin):
             score += 5
         return max(0, min(100, score))
 
-    def identify(self, pkt: Any, peer: str, stats: Dict, intel: IPInfo) -> str:
+    def identify(self, pkt: Any, peer: str, stats: dict, intel: IPInfo) -> str:
         if self.is_noise_ip(peer):
             return "UNKNOWN"
         inb = stats.get("inbound", 0)

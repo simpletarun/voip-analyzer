@@ -2,13 +2,11 @@ import json
 import logging
 from datetime import datetime, timedelta, timezone
 
-_UTC = timezone.utc
-from typing import Dict, List, Optional
-
 from src.database.connection import DatabaseConnection
 from src.models.ip_info import IPInfo
 from src.models.session import SessionReport
 
+_UTC = timezone.utc
 logger = logging.getLogger(__name__)
 
 
@@ -16,7 +14,7 @@ class SessionRepository:
     def __init__(self, db: DatabaseConnection):
         self.db = db
 
-    def save(self, report: SessionReport) -> Optional[int]:
+    def save(self, report: SessionReport) -> int | None:
         try:
             cur = self.db.execute("""
                 INSERT INTO sessions (timestamp, duration_seconds, total_packets,
@@ -35,7 +33,7 @@ class SessionRepository:
             logger.error("Save session failed: %s", e)
             return None
 
-    def get_all(self, limit: int = 50) -> List[Dict]:
+    def get_all(self, limit: int = 50) -> list[dict]:
         try:
             cur = self.db.execute(
                 "SELECT * FROM sessions ORDER BY id DESC LIMIT ?", (limit,))
@@ -44,7 +42,7 @@ class SessionRepository:
             logger.error("Get sessions failed: %s", e)
             return []
 
-    def get_by_id(self, session_id: int) -> Optional[Dict]:
+    def get_by_id(self, session_id: int) -> dict | None:
         try:
             cur = self.db.execute(
                 "SELECT * FROM sessions WHERE id = ?", (session_id,))
@@ -70,9 +68,9 @@ class PeerRepository:
     def __init__(self, db: DatabaseConnection):
         self.db = db
 
-    def save(self, ip: str, intel: IPInfo, stats: Dict,
+    def save(self, ip: str, intel: IPInfo, stats: dict,
              first_seen: str, last_seen: str,
-             session_id: Optional[int] = None) -> None:
+             session_id: int | None = None) -> None:
         try:
             self.db.execute("""
                 INSERT OR REPLACE INTO peers
@@ -90,10 +88,11 @@ class PeerRepository:
         except Exception as e:
             logger.error("Save peer %s failed: %s", ip, e)
 
-    def get_by_session(self, session_id: int) -> List[Dict]:
+    def get_by_session(self, session_id: int) -> list[dict]:
         try:
             cur = self.db.execute(
-                "SELECT * FROM peers WHERE session_id = ? OR session_id IS NULL ORDER BY packet_count DESC",
+                "SELECT * FROM peers WHERE session_id = ? "
+                "OR session_id IS NULL ORDER BY packet_count DESC",
                 (session_id,))
             return [dict(row) for row in cur.fetchall()]
         except Exception as e:
@@ -131,7 +130,7 @@ class CacheRepository:
     def __init__(self, db: DatabaseConnection):
         self.db = db
 
-    def get(self, ip: str) -> Optional[IPInfo]:
+    def get(self, ip: str) -> IPInfo | None:
         try:
             cur = self.db.execute(
                 "SELECT data_json, expires_at FROM ip_cache WHERE ip = ?",
@@ -151,8 +150,11 @@ class CacheRepository:
             now = datetime.now(_UTC)
             expires = now + timedelta(hours=ttl_hours)
             self.db.execute(
-                "INSERT OR REPLACE INTO ip_cache (ip, data_json, cached_at, expires_at) VALUES (?, ?, ?, ?)",
-                (ip, json.dumps(intel.to_dict()), now.isoformat(), expires.isoformat()))
+                "INSERT OR REPLACE INTO ip_cache "
+                "(ip, data_json, cached_at, expires_at) "
+                "VALUES (?, ?, ?, ?)",
+                (ip, json.dumps(intel.to_dict()),
+                 now.isoformat(), expires.isoformat()))
         except Exception as e:
             logger.error("Cache write for %s failed: %s", ip, e)
 

@@ -1,7 +1,7 @@
 import importlib
 import logging
 import pkgutil
-from typing import Any, Dict, List, Optional
+from typing import Any
 
 from src.models.ip_info import IPInfo
 from src.plugins.base import ProtocolPlugin
@@ -10,8 +10,8 @@ logger = logging.getLogger(__name__)
 
 
 class PluginManager:
-    def __init__(self, extra_plugins: Optional[List[str]] = None):
-        self.plugins: List[ProtocolPlugin] = self._discover()
+    def __init__(self, extra_plugins: list[str] | None = None):
+        self.plugins: list[ProtocolPlugin] = self._discover()
         if extra_plugins:
             for mod_name in extra_plugins:
                 try:
@@ -25,8 +25,8 @@ class PluginManager:
                 except Exception as e:
                     logger.warning("Failed to load plugin %s: %s", mod_name, e)
 
-    def _discover(self) -> List[ProtocolPlugin]:
-        plugins: List[ProtocolPlugin] = []
+    def _discover(self) -> list[ProtocolPlugin]:
+        plugins: list[ProtocolPlugin] = []
         try:
             import src.plugins as pkg
             for _, mod_name, _ in pkgutil.iter_modules(pkg.__path__):
@@ -57,7 +57,7 @@ class PluginManager:
                 return desc
         return "Unknown"
 
-    def classify(self, pkt: Any, peer: str, stats: Dict, intel: IPInfo) -> str:
+    def classify(self, pkt: Any, peer: str, stats: dict, intel: IPInfo) -> str:
         for plugin in self.plugins:
             result = plugin.identify(pkt, peer, stats, intel)
             if result != "UNKNOWN":

@@ -1,6 +1,5 @@
 import logging
 import os
-from typing import Optional
 
 from PyQt6.QtWidgets import QApplication
 
@@ -75,10 +74,10 @@ class ThemeEngine:
     }
 
     @classmethod
-    def load_from_file(cls, path: str) -> Optional[str]:
+    def load_from_file(cls, path: str) -> str | None:
         try:
             if os.path.exists(path):
-                with open(path, "r", encoding="utf-8") as f:
+                with open(path, encoding="utf-8") as f:
                     return f.read()
         except OSError as e:
             logger.warning("Failed to load theme file %s: %s", path, e)

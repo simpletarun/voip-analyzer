@@ -1,6 +1,5 @@
 import html
 import logging
-from typing import Dict
 
 from src.export.base import Exporter
 from src.models.session import SessionReport
@@ -9,7 +8,7 @@ logger = logging.getLogger(__name__)
 
 
 class HtmlExporter(Exporter):
-    def export(self, report: SessionReport, peers: Dict[str, Dict], path: str) -> bool:
+    def export(self, report: SessionReport, peers: dict[str, dict], path: str) -> bool:
         try:
             rows = ""
             for ip, data in peers.items():
@@ -18,9 +17,10 @@ class HtmlExporter(Exporter):
                 ip_type = data.get("type", "UNKNOWN")
                 color = "#0f0" if ip_type == "P2P_PEER" else "#fa0"
                 ver = "v6" if (intel and intel.is_ipv6) else "v4"
+                type_style = f"color:{html.escape(color)};font-weight:bold"
                 rows += f"""<tr>
                     <td>{html.escape(ip)} ({html.escape(ver)})</td>
-                    <td style="color:{html.escape(color)};font-weight:bold">{html.escape(ip_type)}</td>
+                    <td style="{type_style}">{html.escape(ip_type)}</td>
                     <td>{html.escape(intel.isp if intel else 'Unknown')}</td>
                     <td>{html.escape(intel.city if intel else 'Unknown')}</td>
                     <td>{html.escape(intel.country if intel else 'Unknown')}</td>
