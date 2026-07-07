@@ -1,0 +1,18 @@
+# Build outputs
+dist/
+build/
+*.spec
+*.exe
+__pycache__/
+*.pyc
+
+# Environment
+.env
+
+# Runtime data/logs
+logs/
+data/
+
+# IDE
+.vscode/
+.idea/

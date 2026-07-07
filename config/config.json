@@ -1,0 +1,27 @@
+{
+  "version": "3.1.0",
+  "debug": false,
+  "api_timeout": 5,
+  "cache_ttl_hours": 24,
+  "max_api_calls_per_min": 40,
+  "gui_update_interval_ms": 100,
+  "stats_update_interval_ms": 1000,
+  "max_table_rows": 5000,
+  "log_level": "INFO",
+  "log_max_bytes": 5242880,
+  "log_backup_count": 3,
+  "theme": "dark",
+  "language": "en",
+  "interface": "",
+  "data_retention_days": 90,
+  "whatsapp_ports": [
+    [55221, 55427],
+    [10000, 20000],
+    [3478, 3479],
+    [4048, 4050],
+    [5000, 5004],
+    [8000, 9000],
+    [49152, 65535],
+    [443, 443]
+  ]
+}

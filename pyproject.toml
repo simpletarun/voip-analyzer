@@ -1,0 +1,74 @@
+[build-system]
+requires = ["setuptools>=68.0"]
+build-backend = "setuptools.backends._legacy:_Backend"
+
+[project]
+name = "voip-analyzer"
+version = "3.1.0"
+description = "WhatsApp VoIP network analyzer for authorized forensic analysis"
+readme = "README.md"
+license = {text = "MIT"}
+requires-python = ">=3.10"
+
+authors = [
+    {name = "VoIP Analyzer Team"},
+]
+
+keywords = ["voip", "whatsapp", "network", "forensics", "analysis"]
+classifiers = [
+    "Development Status :: 4 - Beta",
+    "Intended Audience :: Information Technology",
+    "License :: OSI Approved :: MIT License",
+    "Programming Language :: Python :: 3.10",
+    "Programming Language :: Python :: 3.11",
+    "Programming Language :: Python :: 3.12",
+    "Topic :: Security",
+    "Topic :: System :: Networking :: Monitoring",
+]
+
+dependencies = [
+    "PyQt6>=6.5",
+    "scapy>=2.5",
+    "requests>=2.31",
+    "python-dotenv>=1.0",
+    "folium>=0.15",
+    "PyQt6-WebEngine>=6.5",
+]
+
+[project.optional-dependencies]
+dev = [
+    "pytest>=8.0",
+    "pytest-qt>=4.2",
+    "ruff>=0.1",
+    "mypy>=1.8",
+    "pre-commit>=3.6",
+    "bandit>=1.7",
+    "pytest-cov>=4.1",
+]
+
+[project.scripts]
+voip-analyzer = "src.main:main"
+
+[tool.setuptools.packages.find]
+where = ["."]
+include = ["src*"]
+
+[tool.setuptools.package-data]
+"*" = ["*.json"]
+
+[tool.ruff]
+target-version = "py310"
+line-length = 100
+
+[tool.ruff.lint]
+select = ["E", "F", "I", "N", "W", "UP"]
+
+[tool.mypy]
+python_version = "3.10"
+warn_return_any = true
+warn_unused_configs = true
+ignore_missing_imports = true
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+python_files = ["test_*.py"]
