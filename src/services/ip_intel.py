@@ -2,11 +2,12 @@ import logging
 import socket
 import threading
 import time
-from typing import Dict, List, Optional
+from typing import Any, Dict, List, Optional
 
 from src.config import AppConfig
 from src.database.repository import CacheRepository
 from src.models.ip_info import IPInfo
+from src.utils.concurrency import WorkerPool
 
 logger = logging.getLogger(__name__)
 
@@ -20,12 +21,15 @@ class IPIntelligence:
         "AS20940": "Akamai", "AS3356": "Lumen/Level3",
     }
 
-    def __init__(self, cache_repo: CacheRepository, config: AppConfig):
+    def __init__(self, cache_repo: CacheRepository, config: AppConfig,
+                 enrichment_manager: Any = None):
         self.cache = cache_repo
         self.config = config
+        self.enrichment = enrichment_manager
         self.memory_cache: Dict[str, IPInfo] = {}
         self._lock = threading.Lock()
         self._calls: List[float] = []
+        self._pool = WorkerPool(max_workers=getattr(config, "max_api_calls_per_min", 40) or 8)
 
     def _can_call(self) -> bool:
         try:
@@ -64,7 +68,7 @@ class IPIntelligence:
         info = IPInfo(ip=ip, is_ipv6=":" in ip)
         try:
             import requests
-            url = (f"http://ip-api.com/json/{ip}"
+            url = (f"https://ip-api.com/json/{ip}"
                    "?fields=status,isp,org,city,country,as,lat,lon,mobile,proxy,hosting,reverse")
             r = requests.get(url, timeout=self.config.api_timeout,
                              headers={"User-Agent": "VoIPAnalyzer/3.1.0"})
@@ -97,6 +101,24 @@ class IPIntelligence:
                     socket.setdefaulttimeout(old_timeout)
             except Exception:
                 pass
+
+        if self.enrichment is not None:
+            try:
+                extra = self.enrichment.enrich(ip)
+                if extra:
+                    info.enrichment.update(extra)
+                    info.abuse_score = extra.get("abuse_score") or info.abuse_score
+                    info.fraud_score = extra.get("ipqs_fraud_score") or info.fraud_score
+                    if extra.get("ipqs_vpn"):
+                        info.is_vpn = True
+                    if extra.get("ipqs_tor"):
+                        info.is_tor = True
+                    if extra.get("ipqs_proxy"):
+                        info.is_proxy = True
+                    if extra.get("shodan_ports"):
+                        info.open_ports = extra.get("shodan_ports")
+            except Exception as exc:  # noqa: BLE001
+                logger.warning("Enrichment merge failed for %s: %s", ip, exc)
         return info
 
     def _calculate_score(self, info: IPInfo) -> None:
@@ -104,6 +126,14 @@ class IPIntelligence:
         if info.is_hosting:
             score += 50
         if info.is_proxy:
+            score += 40
+        if info.is_vpn:
+            score += 35
+        if info.is_tor:
+            score += 60
+        if info.abuse_score is not None and info.abuse_score >= 50:
+            score += 45
+        if info.fraud_score is not None and info.fraud_score >= 75:
             score += 40
         asn = (info.asn or "").upper()
         org = (info.org or "").lower()

@@ -61,6 +61,41 @@ python -m src.main
 
 ---
 
+## Configuration
+
+All settings live in `config/config.json` and can be overridden via a `.env`
+file (copy `.env.example` → `.env`). No secrets are stored in code.
+
+| Setting | Default | Purpose |
+|---------|---------|---------|
+| `api_timeout` | 5 | Per-request timeout for ip-api |
+| `cache_ttl_hours` | 24 | IP cache lifetime |
+| `max_api_calls_per_min` | 40 | API rate limit |
+| `theme` | dark | UI theme |
+| `data_retention_days` | 90 | Auto-purge old sessions |
+| `whatsapp_ports` | ranges | BPF capture filter |
+
+## Enrichment Plugins
+
+Optional third-party intelligence is loaded from `src/enrichment/` when the
+corresponding API key is present in `.env`:
+
+| Plugin | Env var | Adds |
+|--------|---------|------|
+| VirusTotal | `VIRUSTOTAL_API_KEY` | malicious/suspicious votes |
+| AbuseIPDB | `ABUSEIPDB_API_KEY` | abuse confidence + reports |
+| Shodan | `SHODAN_API_KEY` | open ports, org, OS |
+| IPQualityScore | `IPQS_API_KEY` | VPN/Proxy/Tor + fraud score |
+
+Lookups run **concurrently** and feed the abuse/fraud/VPN/Tor scoring.
+
+## Export Formats
+
+CSV, JSON, HTML, **Markdown**, **Excel** and **PDF** — all timestamped and
+available from *File → Export Report*.
+
+---
+
 ## Usage
 
 ### First Launch
@@ -120,13 +155,16 @@ voip-analyzer/
 ├── src/                  # Application source
 │   ├── app.py            # Entry point & setup
 │   ├── config.py         # Configuration management
-│   ├── database/         # SQLite storage layer
-│   ├── export/           # CSV/JSON/HTML exporters
+│   ├── database/         # SQLite storage layer (migrations + repositories)
+│   ├── export/           # CSV/JSON/HTML/Markdown/Excel/PDF exporters
 │   ├── models/           # Data models (Packet, Session, IPInfo)
-│   ├── plugins/          # Protocol classifiers (WhatsApp, Signal, etc.)
+│   ├── plugins/          # VoIP protocol classifiers (WhatsApp, Signal, etc.)
+│   ├── enrichment/       # Third-party IP intel plugins (VirusTotal, etc.)
 │   ├── services/         # Capturer, IP intel, network analyzer
-│   └── ui/               # PyQt6 GUI (main window, dialogs, theme)
+│   ├── ui/               # PyQt6 GUI (main window, dialogs, theme)
+│   └── utils/            # Validation, errors, concurrency helpers
 ├── tests/                # Test suite (pytest)
+├── docs/                 # Architecture, plugin & DB documentation
 ├── config/               # Default configuration
 ├── installer.iss         # Inno Setup script for EXE packaging
 ├── pyproject.toml        # Python project metadata

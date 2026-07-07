@@ -65,7 +65,7 @@ class NetworkAnalyzer:
         try:
             import requests
             r = requests.get(
-                f"http://ip-api.com/json/{self.my_public_ip}"
+                f"https://ip-api.com/json/{self.my_public_ip}"
                 "?fields=isp,city,country,lat,lon", timeout=5,
                 headers={"User-Agent": "VoIPAnalyzer/3.1.0"})
             d = r.json()

@@ -33,6 +33,8 @@ dependencies = [
     "python-dotenv>=1.0",
     "folium>=0.15",
     "PyQt6-WebEngine>=6.5",
+    "openpyxl>=3.1",
+    "reportlab>=4.0",
 ]
 
 [project.optional-dependencies]
@@ -47,7 +49,7 @@ dev = [
 ]
 
 [project.scripts]
-voip-analyzer = "src.main:main"
+voip-analyzer = "src.main:run"
 
 [tool.setuptools.packages.find]
 where = ["."]

@@ -13,7 +13,7 @@ from PyQt6.QtGui import QAction, QColor, QKeySequence
 from PyQt6.QtWidgets import (
     QApplication, QComboBox, QFileDialog, QFrame, QHBoxLayout, QHeaderView,
     QLabel, QLineEdit, QMainWindow, QMenuBar, QMessageBox, QPlainTextEdit,
-    QPushButton, QSplitter, QTabWidget, QTableWidget, QTextBrowser,
+    QPushButton, QProgressBar, QSplitter, QTabWidget, QTableWidget, QTextBrowser,
     QTableWidgetItem, QVBoxLayout, QWidget,
 )
 from PyQt6.QtGui import QDesktopServices
@@ -92,6 +92,11 @@ class VoIPAnalyzerGUI(QMainWindow):
         self._pkt_buffer: list = []
         self._buf_lock = threading.Lock()
         self._filter_state: tuple = ("", "All", "All")
+        self._map_signature: str = ""
+        self._my_lat: float = 20.0
+        self._my_lon: float = 0.0
+        self._my_ip: str = "N/A"
+        self._has_location: bool = False
 
         self._ui_event_queue: list = []
         self._ui_event_lock = threading.Lock()
@@ -301,6 +306,12 @@ class VoIPAnalyzerGUI(QMainWindow):
         splitter.setSizes([400, 700])
         root.addWidget(splitter)
 
+        self._progress = QProgressBar()
+        self._progress.setMaximum(0)
+        self._progress.setMaximumWidth(180)
+        self._progress.setVisible(False)
+        self.statusBar().addPermanentWidget(self._progress)
+
         self._build_menu()
         self.statusBar().showMessage(
             f"v{__version__} | DB: {self.config.db_path} | "
@@ -361,7 +372,8 @@ class VoIPAnalyzerGUI(QMainWindow):
                                  "Scapy is not installed.\n\npip install scapy")
             return
 
-        intel_service = IPIntelligence(self.cache_repo, self.config)
+        intel_service = IPIntelligence(self.cache_repo, self.config,
+                                       enrichment_manager=self._enrichment_manager())
         self.capturer = PacketCapturer(self.config, self.session_repo, self.peer_repo,
                                        intel_service)
 
@@ -373,6 +385,9 @@ class VoIPAnalyzerGUI(QMainWindow):
         self.capturer.on("error", lambda *a: self._enqueue_ui_event("_on_error", *a))
 
         ana = self.capturer.analyzer
+        self._my_lat, self._my_lon = ana.my_lat, ana.my_lon
+        self._my_ip = ana.my_public_ip or "N/A"
+        self._has_location = True
         v6_str = f" | IPv6: {ana.my_public_ip_v6}" if ana.my_public_ip_v6 else ""
         self.ip_label.setText(
             f"IPv4: {ana.my_public_ip}{v6_str} | "
@@ -389,6 +404,13 @@ class VoIPAnalyzerGUI(QMainWindow):
         self.status_lbl.setStyleSheet("color: #0f0; font-weight: bold;")
         self._log("Capture started. Make a call.")
         self._log("Your IP is filtered out.")
+
+    def _enrichment_manager(self):
+        from src.enrichment.manager import EnrichmentManager
+
+        if getattr(self, "_enrichment", None) is None:
+            self._enrichment = EnrichmentManager(self.config)
+        return self._enrichment
 
     def stop_capture(self) -> None:
         if not self.capturer:
@@ -845,16 +867,32 @@ class VoIPAnalyzerGUI(QMainWindow):
         else:
             self._update_map_table()
 
+    def _map_signature_str(self) -> str:
+        lat = self.capturer.analyzer.my_lat if self.capturer else 20.0
+        lon = self.capturer.analyzer.my_lon if self.capturer else 0.0
+        parts = [f"YOU:{lat:.4f},{lon:.4f}"]
+        for ip in sorted(self.all_data):
+            data = self.all_data[ip]
+            intel = data.get("intel")
+            if not intel:
+                continue
+            parts.append(f"{ip}:{data.get('type')}:{intel.lat:.4f}:{intel.lon:.4f}")
+        return "|".join(parts)
+
     def _render_map(self) -> None:
         if not (HAS_WEBENGINE and HAS_FOLIUM):
             return
+        # Only reload the web view when the map data actually changed,
+        # otherwise setHtml() triggers a visible flash on every refresh.
+        sig = self._map_signature_str()
+        if sig == self._map_signature:
+            return
+        self._map_signature = sig
         try:
-            lat = self.capturer.analyzer.my_lat if self.capturer else 20.0
-            lon = self.capturer.analyzer.my_lon if self.capturer else 0.0
-            my_ip = self.capturer.analyzer.my_public_ip if self.capturer else "N/A"
+            lat, lon, my_ip = self._my_lat, self._my_lon, self._my_ip
             m = folium.Map(location=[lat, lon], zoom_start=2,
                            tiles="CartoDB dark_matter")
-            if self.capturer:
+            if self._has_location:
                 folium.CircleMarker(
                     location=[lat, lon], radius=12,
                     popup=f"<b>YOU</b><br>{my_ip}",
@@ -871,7 +909,7 @@ class VoIPAnalyzerGUI(QMainWindow):
                     popup=f"{ip} ({ver})<br>{intel.isp}<br>{intel.city}<br>{intel.country}",
                     color=c, fill=True, fill_color=c
                 ).add_to(m)
-                if self.capturer:
+                if self._has_location:
                     folium.PolyLine(
                         locations=[[lat, lon], [intel.lat, intel.lon]],
                         color=c, weight=2, opacity=0.6
@@ -888,12 +926,11 @@ class VoIPAnalyzerGUI(QMainWindow):
         if not hasattr(self, "map_location_table"):
             return
         self.map_location_table.setRowCount(0)
-        if self.capturer:
-            ana = self.capturer.analyzer
+        if self._has_location:
             row = self.map_location_table.rowCount()
             self.map_location_table.insertRow(row)
-            vals = ["YOUR IP", "LOCAL", ana.my_isp,
-                    "", "", f"{ana.my_lat:.4f}", f"{ana.my_lon:.4f}"]
+            vals = ["YOUR IP", "LOCAL", self._my_ip,
+                    "", "", f"{self._my_lat:.4f}", f"{self._my_lon:.4f}"]
             for c, v in enumerate(vals):
                 item = QTableWidgetItem(str(v))
                 item.setForeground(QColor("#0ff"))
@@ -922,12 +959,10 @@ class VoIPAnalyzerGUI(QMainWindow):
         try:
             import folium
             import tempfile
-            lat = self.capturer.analyzer.my_lat if self.capturer else 20.0
-            lon = self.capturer.analyzer.my_lon if self.capturer else 0.0
-            my_ip = self.capturer.analyzer.my_public_ip if self.capturer else "N/A"
+            lat, lon, my_ip = self._my_lat, self._my_lon, self._my_ip
             m = folium.Map(location=[lat, lon], zoom_start=2,
                            tiles="CartoDB dark_matter")
-            if self.capturer:
+            if self._has_location:
                 folium.CircleMarker(
                     location=[lat, lon], radius=12,
                     popup=f"<b>YOU</b><br>{my_ip}",
@@ -962,32 +997,53 @@ class VoIPAnalyzerGUI(QMainWindow):
             QMessageBox.information(self, "Export", "No data to export.")
             return
 
-        formats = ["CSV (*.csv)", "JSON (*.json)", "HTML (*.html)"]
+        formats = ["CSV (*.csv)", "JSON (*.json)", "HTML (*.html)",
+                   "Markdown (*.md)", "Excel (*.xlsx)", "PDF (*.pdf)"]
         path, selected_filter = QFileDialog.getSaveFileName(
             self, "Export Report", "voip_report", ";;".join(formats))
         if not path:
             return
 
-        report = self.capturer.get_report() if self.capturer else SessionReport()
-        success = False
-        if selected_filter.startswith("CSV"):
-            if not path.endswith(".csv"):
-                path += ".csv"
-            success = CsvExporter().export(report, self.all_data, path)
-        elif selected_filter.startswith("JSON"):
-            if not path.endswith(".json"):
-                path += ".json"
-            success = JsonExporter().export(report, self.all_data, path)
-        elif selected_filter.startswith("HTML"):
-            if not path.endswith(".html"):
-                path += ".html"
-            success = HtmlExporter().export(report, self.all_data, path)
+        self._progress.setVisible(True)
+        self._progress.setRange(0, 0)
+        QApplication.processEvents()
+        try:
+            report = self.capturer.get_report() if self.capturer else SessionReport()
+            success = False
+            if selected_filter.startswith("CSV"):
+                if not path.endswith(".csv"):
+                    path += ".csv"
+                success = CsvExporter().export(report, self.all_data, path)
+            elif selected_filter.startswith("JSON"):
+                if not path.endswith(".json"):
+                    path += ".json"
+                success = JsonExporter().export(report, self.all_data, path)
+            elif selected_filter.startswith("HTML"):
+                if not path.endswith(".html"):
+                    path += ".html"
+                success = HtmlExporter().export(report, self.all_data, path)
+            elif selected_filter.startswith("Markdown"):
+                if not path.endswith(".md"):
+                    path += ".md"
+                success = MarkdownExporter().export(report, self.all_data, path)
+            elif selected_filter.startswith("Excel"):
+                if not path.endswith(".xlsx"):
+                    path += ".xlsx"
+                success = ExcelExporter().export(report, self.all_data, path)
+            elif selected_filter.startswith("PDF"):
+                if not path.endswith(".pdf"):
+                    path += ".pdf"
+                success = PdfExporter().export(report, self.all_data, path)
 
-        if success:
-            self._log(f"Exported to: {path}")
-            QMessageBox.information(self, "Export", f"Saved to:\n{path}")
-        else:
-            self._log(f"Export failed: {path}")
+            if success:
+                self._log(f"Exported to: {path}")
+                self.statusBar().showMessage(f"Exported: {path}")
+                QMessageBox.information(self, "Export", f"Saved to:\n{path}")
+            else:
+                self._log(f"Export failed: {path}")
+                QMessageBox.warning(self, "Export", "Export failed. Check logs.")
+        finally:
+            self._progress.setVisible(False)
 
     def _apply_theme(self, theme_name: str) -> None:
         self.config.theme = theme_name

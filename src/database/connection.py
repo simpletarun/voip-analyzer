@@ -71,7 +71,10 @@ class DatabaseConnection:
             CREATE TABLE IF NOT EXISTS settings (key TEXT PRIMARY KEY, value TEXT);
             CREATE INDEX IF NOT EXISTS idx_sessions_ts ON sessions(timestamp);
             CREATE INDEX IF NOT EXISTS idx_peers_country ON peers(country);
+            CREATE INDEX IF NOT EXISTS idx_peers_isp ON peers(isp);
+            CREATE INDEX IF NOT EXISTS idx_peers_classification ON peers(classification);
             CREATE INDEX IF NOT EXISTS idx_cache_expires ON ip_cache(expires_at);
+            CREATE INDEX IF NOT EXISTS idx_cache_ip ON ip_cache(ip);
         """)
         cur.execute("SELECT COUNT(*) FROM schema_version")
         if cur.fetchone()[0] == 0:
@@ -125,6 +128,27 @@ class DatabaseConnection:
                 self.conn.execute("VACUUM")
             except sqlite3.Error as e:
                 logger.error("Vacuum failed: %s", e)
+
+    def backup(self, dest: str) -> bool:
+        """Create a safe copy of the live database (hot backup)."""
+        if not self.conn:
+            return False
+        try:
+            import shutil
+
+            parent = os.path.dirname(dest)
+            if parent and not os.path.exists(parent):
+                os.makedirs(parent, exist_ok=True)
+            self.conn.execute("BEGIN IMMEDIATE")
+            try:
+                shutil.copyfile(self.path, dest)
+            finally:
+                self.conn.execute("COMMIT")
+            logger.info("Database backup written: %s", dest)
+            return True
+        except (sqlite3.Error, OSError) as e:
+            logger.error("Backup failed: %s", e)
+            return False
 
     def close(self) -> None:
         if self.conn:

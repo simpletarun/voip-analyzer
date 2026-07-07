@@ -1,5 +1,5 @@
-from dataclasses import dataclass, asdict
-from typing import Dict, Optional
+from dataclasses import dataclass, asdict, field
+from typing import Any, Dict, Optional
 
 
 @dataclass
@@ -21,6 +21,12 @@ class IPInfo:
     classification: str = "UNKNOWN"
     confidence: float = 0.0
     cached_at: Optional[str] = None
+    abuse_score: Optional[int] = None
+    fraud_score: Optional[int] = None
+    is_vpn: bool = False
+    is_tor: bool = False
+    open_ports: list = field(default_factory=list)
+    enrichment: Dict[str, Any] = field(default_factory=dict)
 
     def to_dict(self) -> Dict[str, object]:
         return asdict(self)
