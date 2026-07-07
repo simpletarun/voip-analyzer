@@ -73,6 +73,7 @@ class DatabaseConnection:
             CREATE INDEX IF NOT EXISTS idx_peers_country ON peers(country);
             CREATE INDEX IF NOT EXISTS idx_peers_isp ON peers(isp);
             CREATE INDEX IF NOT EXISTS idx_peers_classification ON peers(classification);
+            CREATE INDEX IF NOT EXISTS idx_peers_ip ON peers(ip);
             CREATE INDEX IF NOT EXISTS idx_cache_expires ON ip_cache(expires_at);
             CREATE INDEX IF NOT EXISTS idx_cache_ip ON ip_cache(ip);
         """)

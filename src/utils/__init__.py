@@ -13,6 +13,7 @@ from src.utils.validation import (
     is_public_ip,
 )
 from src.utils.concurrency import WorkerPool
+from src.utils.http import build_session
 
 __all__ = [
     "VoIPAnalyzerError",
@@ -24,4 +25,5 @@ __all__ = [
     "sanitize_text",
     "is_public_ip",
     "WorkerPool",
+    "build_session",
 ]

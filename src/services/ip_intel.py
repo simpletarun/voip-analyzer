@@ -8,6 +8,7 @@ from src.config import AppConfig
 from src.database.repository import CacheRepository
 from src.models.ip_info import IPInfo
 from src.utils.concurrency import WorkerPool
+from src.utils.http import build_session
 
 logger = logging.getLogger(__name__)
 
@@ -30,6 +31,7 @@ class IPIntelligence:
         self._lock = threading.Lock()
         self._calls: List[float] = []
         self._pool = WorkerPool(max_workers=getattr(config, "max_api_calls_per_min", 40) or 8)
+        self._session = build_session(getattr(config, "api_timeout", 5) or 5)
 
     def _can_call(self) -> bool:
         try:
@@ -67,11 +69,15 @@ class IPIntelligence:
     def _query_api(self, ip: str) -> IPInfo:
         info = IPInfo(ip=ip, is_ipv6=":" in ip)
         try:
-            import requests
             url = (f"https://ip-api.com/json/{ip}"
                    "?fields=status,isp,org,city,country,as,lat,lon,mobile,proxy,hosting,reverse")
-            r = requests.get(url, timeout=self.config.api_timeout,
-                             headers={"User-Agent": "VoIPAnalyzer/3.1.0"})
+            if self._session is not None:
+                r = self._session.get(url)
+            else:
+                import requests
+
+                r = requests.get(url, timeout=self.config.api_timeout,
+                                  headers={"User-Agent": "VoIPAnalyzer/3.1.0"})
             d = r.json()
             if d.get("status") == "success":
                 info.isp = d.get("isp", "Unknown")

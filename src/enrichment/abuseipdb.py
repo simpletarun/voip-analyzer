@@ -7,10 +7,9 @@ reports for an IP.
 import logging
 import os
 
-import requests
-
 from src.enrichment.base import EnrichmentPlugin
 from src.utils.errors import ValidationError
+from src.utils.http import build_session
 from src.utils.validation import validate_ip
 
 logger = logging.getLogger(__name__)
@@ -27,6 +26,7 @@ class AbuseIPDBPlugin(EnrichmentPlugin):
     def initialize(self, config) -> None:
         self._key = os.environ.get("ABUSEIPDB_API_KEY", "")
         self._timeout = getattr(config, "api_timeout", 5) if config else 5
+        self._session = build_session(self._timeout)
 
     def is_available(self) -> bool:
         return bool(self._key)
@@ -37,12 +37,11 @@ class AbuseIPDBPlugin(EnrichmentPlugin):
         except ValidationError:
             return {}
         try:
-            resp = requests.get(
+            resp = self._session.get(
                 AB_URL,
                 headers={"Key": self._key, "Accept": "application/json"},
                 params={"ipAddress": ip, "maxAgeInDays": 90},
                 timeout=self._timeout,
-                verify=True,
             )
             if resp.status_code != 200:
                 return {"abuse_score": None}

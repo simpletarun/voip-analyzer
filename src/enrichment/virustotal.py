@@ -7,10 +7,9 @@ signals derived from VirusTotal's IP report.
 import logging
 import os
 
-import requests
-
 from src.enrichment.base import EnrichmentPlugin
 from src.utils.errors import ValidationError
+from src.utils.http import build_session
 from src.utils.validation import validate_ip
 
 logger = logging.getLogger(__name__)
@@ -27,6 +26,7 @@ class VirusTotalPlugin(EnrichmentPlugin):
     def initialize(self, config) -> None:
         self._key = os.environ.get("VIRUSTOTAL_API_KEY", "")
         self._timeout = getattr(config, "api_timeout", 5) if config else 5
+        self._session = build_session(self._timeout)
 
     def is_available(self) -> bool:
         return bool(self._key)
@@ -37,11 +37,10 @@ class VirusTotalPlugin(EnrichmentPlugin):
         except ValidationError:
             return {}
         try:
-            resp = requests.get(
+            resp = self._session.get(
                 VT_URL.format(ip=ip),
                 headers={"x-apikey": self._key},
                 timeout=self._timeout,
-                verify=True,
             )
             if resp.status_code != 200:
                 return {"vt_malicious": None}

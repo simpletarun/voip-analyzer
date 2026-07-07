@@ -3,6 +3,8 @@ import logging
 import socket
 from typing import Optional
 
+from src.utils.http import build_session
+
 logger = logging.getLogger(__name__)
 
 
@@ -15,6 +17,7 @@ class NetworkAnalyzer:
         self.my_isp: str = "Unknown"
         self.my_lat: float = 20.0
         self.my_lon: float = 0.0
+        self._session = build_session(5)
         self._detect()
 
     def _detect(self) -> None:
@@ -42,15 +45,13 @@ class NetworkAnalyzer:
 
     def _detect_public_ips(self) -> None:
         try:
-            import requests
-            r = requests.get("https://api.ipify.org?format=json", timeout=5)
+            r = self._session.get("https://api.ipify.org?format=json", timeout=5)
             self.my_public_ip = r.json().get("ip")
         except Exception:
             self.my_public_ip = self.my_local_ip
 
         try:
-            import requests
-            r6 = requests.get("https://api64.ipify.org?format=json", timeout=5)
+            r6 = self._session.get("https://api64.ipify.org?format=json", timeout=5)
             ip = r6.json().get("ip", "")
             if ":" in ip:
                 self.my_public_ip_v6 = ip
@@ -63,8 +64,7 @@ class NetworkAnalyzer:
         if not self.my_public_ip:
             return
         try:
-            import requests
-            r = requests.get(
+            r = self._session.get(
                 f"https://ip-api.com/json/{self.my_public_ip}"
                 "?fields=isp,city,country,lat,lon", timeout=5,
                 headers={"User-Agent": "VoIPAnalyzer/3.1.0"})

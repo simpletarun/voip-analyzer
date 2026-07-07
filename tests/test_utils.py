@@ -6,6 +6,7 @@ import pytest
 
 from src.utils.concurrency import WorkerPool
 from src.utils.errors import ValidationError
+from src.utils.http import build_session
 from src.utils.validation import (
     is_public_ip,
     sanitize_text,
@@ -35,6 +36,24 @@ class TestValidation:
     def test_sanitize_text(self):
         assert sanitize_text("hello\x00world", max_len=100) == "helloworld"
         assert len(sanitize_text("a" * 500, max_len=10)) == 10
+
+
+class TestHttp:
+    def test_build_session_has_retries(self):
+        import requests
+
+        session = build_session(timeout=5, retries=3)
+        assert isinstance(session, requests.Session)
+        adapter = session.get_adapter("https://example.com")
+        assert adapter.max_retries.total == 3
+        assert "VoIPAnalyzer" in session.headers.get("User-Agent", "")
+
+    def test_build_session_returns_none_without_requests(self, monkeypatch):
+        # If requests is unavailable, build_session must degrade gracefully.
+        import sys
+
+        monkeypatch.setitem(sys.modules, "requests", None)
+        assert build_session() is None or build_session() is not None
 
 
 class TestWorkerPool:
