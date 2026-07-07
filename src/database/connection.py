@@ -1,4 +1,5 @@
 import logging
+import os
 import sqlite3
 import threading
 from datetime import datetime, timedelta, timezone
@@ -18,6 +19,9 @@ class DatabaseConnection:
 
     def _init(self) -> None:
         try:
+            parent = os.path.dirname(self.path)
+            if parent and not os.path.exists(parent):
+                os.makedirs(parent, exist_ok=True)
             self.conn = sqlite3.connect(self.path, check_same_thread=False)
             self.conn.row_factory = sqlite3.Row
             self._configure_pragmas()
