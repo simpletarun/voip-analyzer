@@ -108,6 +108,10 @@ class VoIPAnalyzerGUI(QMainWindow):
         self._cleanup_timer.timeout.connect(self._cleanup_cache)
         self._cleanup_timer.start(3600 * 1000)
 
+        self._map_timer = QTimer()
+        self._map_timer.timeout.connect(self._refresh_map)
+        self._map_timer.start(3000)
+
         self._retention_cleanup()
 
         self._build_ui()
@@ -1002,6 +1006,11 @@ class VoIPAnalyzerGUI(QMainWindow):
             removed = self.session_repo.delete_older_than(days)
             if removed > 0:
                 self._log(f"Data retention: {removed} old sessions purged (> {days} days)")
+
+    def _refresh_map(self) -> None:
+        if not self.all_data:
+            return
+        self._update_map_table()
 
     def _show_about(self) -> None:
         QMessageBox.about(

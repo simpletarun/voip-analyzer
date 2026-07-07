@@ -64,7 +64,7 @@ class IPIntelligence:
         info = IPInfo(ip=ip, is_ipv6=":" in ip)
         try:
             import requests
-            url = (f"https://ip-api.com/json/{ip}"
+            url = (f"http://ip-api.com/json/{ip}"
                    "?fields=status,isp,org,city,country,as,lat,lon,mobile,proxy,hosting,reverse")
             r = requests.get(url, timeout=self.config.api_timeout,
                              headers={"User-Agent": "VoIPAnalyzer/3.1.0"})
