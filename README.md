@@ -1,5 +1,7 @@
 # Cutter — VoIP Analyzer
 
+![Cutter VoIP Analyzer](assets/banner.svg)
+
 > Real-time WhatsApp VoIP traffic analyzer with GUI, P2P peer detection, and geolocation mapping.
 
 **Cutter** is a forensic-grade network analysis tool that captures, classifies, and visualizes WhatsApp VoIP traffic on your local network. Built for authorized security researchers, network administrators, and digital forensics professionals.
