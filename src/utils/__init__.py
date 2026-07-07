@@ -9,7 +9,6 @@ from src.utils.errors import (
 )
 from src.utils.validation import (
     validate_ip,
-    validate_phone,
     sanitize_text,
     is_public_ip,
 )
@@ -22,7 +21,6 @@ __all__ = [
     "DatabaseError",
     "PluginError",
     "validate_ip",
-    "validate_phone",
     "sanitize_text",
     "is_public_ip",
     "WorkerPool",

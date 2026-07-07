@@ -17,8 +17,6 @@ flowchart TD
     G -->|optional keys| I[EnrichmentManager]
     I --> J[VirusTotal / AbuseIPDB / Shodan / IPQS]
     G --> H
-    C --> K[PhoneAnalyzer]
-    K --> L[NumVerify / Offline heuristic]
     C --> M[Exporters: CSV/JSON/HTML/MD/XLSX/PDF]
     C --> N[(SQLite: sessions, peers, cache)]
 ```
@@ -29,9 +27,9 @@ flowchart TD
 |-------|---------|----------------|
 | Entry | `src/main.py`, `src/app.py` | bootstrap, logging, disclaimer |
 | Config | `src/config.py` | `AppConfig` dataclass, JSON + `.env` |
-| Models | `src/models/` | `PacketInfo`, `IPInfo`, `SessionReport`, `PhoneResult` |
+| Models | `src/models/` | `PacketInfo`, `IPInfo`, `SessionReport` |
 | Data | `src/database/` | SQLite connection, migrations, repositories |
-| Services | `src/services/` | capture, IP intel, network detection, phone |
+| Services | `src/services/` | capture, IP intel, network detection |
 | Plugins | `src/plugins/` | VoIP protocol classifiers |
 | Enrichment | `src/enrichment/` | third-party IP intelligence plugins |
 | Export | `src/export/` | report exporters |

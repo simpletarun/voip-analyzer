@@ -55,12 +55,12 @@ iscc installer.iss            # Windows installer (Inno Setup)
 src/
   app.py / main.py   entry point, logging, disclaimer
   config.py          AppConfig
-  models/            PacketInfo, IPInfo, SessionReport, PhoneResult
+  models/            PacketInfo, IPInfo, SessionReport
   database/          SQLite connection + repositories
-  services/          capturer, ip_intel, network_analyzer, phone
-  plugins/           VoIP protocol classifiers
-  enrichment/        third-party IP intelligence plugins
   export/            CSV/JSON/HTML/Markdown/Excel/PDF exporters
+  plugins/           VoIP protocol classifiers
+  enrichment/        third-party IP intel plugins
+  services/          capturer, ip_intel, network_analyzer
   ui/                PyQt6 GUI
   utils/             validation, errors, concurrency
 tests/               pytest suite

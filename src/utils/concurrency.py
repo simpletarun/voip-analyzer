@@ -1,6 +1,6 @@
 """Bounded thread-pool helper for concurrent, independent lookups.
 
-Replaces the previous single-threaded resolver so that multiple IP/phone
+Replaces the previous single-threaded resolver so that multiple IP
 enrichments can run in parallel (see review point 11). The pool is sized from
 configuration and shuts down cleanly on context exit.
 """

@@ -10,7 +10,6 @@ from src.utils.validation import (
     is_public_ip,
     sanitize_text,
     validate_ip,
-    validate_phone,
 )
 
 
@@ -32,13 +31,6 @@ class TestValidation:
     def test_is_public_ip(self):
         assert is_public_ip("8.8.8.8") is True
         assert is_public_ip("192.168.0.1") is False
-
-    def test_valid_phone(self):
-        assert validate_phone("+1 (201) 555-0123") == "+12015550123"
-
-    def test_invalid_phone(self):
-        with pytest.raises(ValidationError):
-            validate_phone("123")
 
     def test_sanitize_text(self):
         assert sanitize_text("hello\x00world", max_len=100) == "helloworld"
