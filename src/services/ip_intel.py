@@ -64,7 +64,7 @@ class IPIntelligence:
         info = IPInfo(ip=ip, is_ipv6=":" in ip)
         try:
             import requests
-            url = (f"http://ip-api.com/json/{ip}"
+            url = (f"https://ip-api.com/json/{ip}"
                    "?fields=status,isp,org,city,country,as,lat,lon,mobile,proxy,hosting,reverse")
             r = requests.get(url, timeout=self.config.api_timeout,
                              headers={"User-Agent": "VoIPAnalyzer/3.1.0"})
@@ -89,7 +89,12 @@ class IPIntelligence:
 
         if not info.reverse_dns:
             try:
-                info.reverse_dns = socket.gethostbyaddr(ip)[0]
+                old_timeout = socket.getdefaulttimeout()
+                socket.setdefaulttimeout(5.0)
+                try:
+                    info.reverse_dns = socket.gethostbyaddr(ip)[0]
+                finally:
+                    socket.setdefaulttimeout(old_timeout)
             except Exception:
                 pass
         return info

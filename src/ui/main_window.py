@@ -1,3 +1,4 @@
+import concurrent.futures
 import json
 import logging
 import os
@@ -5,7 +6,7 @@ import re
 import threading
 import time
 from datetime import datetime
-from typing import Any, Dict, Optional
+from typing import Any, Dict, Optional, Pattern
 
 from PyQt6.QtCore import Qt, QTimer, QUrl
 from PyQt6.QtGui import QAction, QColor, QKeySequence
@@ -65,6 +66,16 @@ except ImportError:
     pass
 
 
+_RE_THREAD = concurrent.futures.ThreadPoolExecutor(max_workers=1)
+
+def _safe_compile_regex(pattern: str, timeout: float = 0.5) -> Optional[Pattern]:
+    try:
+        future = _RE_THREAD.submit(lambda: re.compile(pattern, re.IGNORECASE))
+        return future.result(timeout=timeout)
+    except Exception:
+        return None
+
+
 class VoIPAnalyzerGUI(QMainWindow):
     def __init__(self, config: AppConfig):
         super().__init__()
@@ -96,6 +107,8 @@ class VoIPAnalyzerGUI(QMainWindow):
         self._cleanup_timer = QTimer()
         self._cleanup_timer.timeout.connect(self._cleanup_cache)
         self._cleanup_timer.start(3600 * 1000)
+
+        self._retention_cleanup()
 
         self._build_ui()
 
@@ -666,11 +679,9 @@ class VoIPAnalyzerGUI(QMainWindow):
         if text:
             if len(text) > 200:
                 text = text[:200]
-            try:
-                compiled = re.compile(text, re.IGNORECASE)
+            compiled = _safe_compile_regex(text)
+            if compiled is not None:
                 use_regex = True
-            except re.error:
-                use_regex = False
 
         for table in (self.table, self.p2p_table, self.relay_table):
             for row in range(table.rowCount()):
@@ -984,6 +995,13 @@ class VoIPAnalyzerGUI(QMainWindow):
         removed = self.cache_repo.cleanup()
         if removed > 0:
             self._log(f"Cache cleanup: {removed} entries removed")
+
+    def _retention_cleanup(self) -> None:
+        days = self.config.data_retention_days
+        if days > 0:
+            removed = self.session_repo.delete_older_than(days)
+            if removed > 0:
+                self._log(f"Data retention: {removed} old sessions purged (> {days} days)")
 
     def _show_about(self) -> None:
         QMessageBox.about(

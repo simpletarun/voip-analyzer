@@ -1,0 +1,28 @@
+name: CI
+
+on: [push, pull_request]
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    strategy:
+      matrix:
+        python-version: ["3.10", "3.11", "3.12"]
+
+    steps:
+    - uses: actions/checkout@v4
+    - uses: actions/setup-python@v5
+      with:
+        python-version: ${{ matrix.python-version }}
+    - name: Install system deps
+      run: sudo apt-get update && sudo apt-get install -y libpcap-dev
+    - name: Install dependencies
+      run: |
+        pip install -e ".[dev]"
+        pip install PyQt6 PyQt6-WebEngine
+    - name: Lint with ruff
+      run: ruff check src/ tests/
+    - name: Type check with mypy
+      run: mypy src/ --ignore-missing-imports || true
+    - name: Test with pytest
+      run: pytest -v --tb=short

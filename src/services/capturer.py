@@ -29,12 +29,14 @@ except ImportError:
 class PacketCapturer:
     def __init__(self, config: AppConfig, session_repo: SessionRepository,
                  peer_repo: PeerRepository,
-                 intel_service: Optional[IPIntelligence] = None):
+                 intel_service: IPIntelligence):
         self.config = config
         self.session_repo = session_repo
         self.peer_repo = peer_repo
         self.analyzer = NetworkAnalyzer()
-        self.intel = intel_service or IPIntelligence.__new__(IPIntelligence)
+        if intel_service is None:
+            raise ValueError("intel_service is required")
+        self.intel = intel_service
         self.plugins = PluginManager()
 
         self._resolver_queue: "queue.Queue[str]" = queue.Queue()
@@ -67,9 +69,7 @@ class PacketCapturer:
                 logger.error("Signal handler error: %s", e)
 
     def get_intel(self, ip: str) -> IPInfo:
-        if ip in self.intel.memory_cache:
-            return self.intel.memory_cache[ip]
-        return self.intel._minimal(ip)
+        return self.intel.get_intel(ip)
 
     def set_intel(self, intel_service: IPIntelligence) -> None:
         self.intel = intel_service
