@@ -1,0 +1,174 @@
+name: Release
+
+on:
+  workflow_dispatch:
+    inputs:
+      version:
+        description: 'Release version (e.g. 3.2.0)'
+        required: true
+        type: string
+  push:
+    tags: ["v*"]
+
+env:
+  PYTHON_VERSION: "3.11"
+  INNO_SETUP_URL: "https://jrsoftware.org/download.php/is.exe"
+  NPCAP_DOWNLOAD_URL: "https://npcap.com/dist/npcap-1.80.exe"
+
+jobs:
+  release:
+    runs-on: windows-latest
+    permissions:
+      contents: write
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Resolve version
+        id: version
+        shell: bash
+        run: |
+          if [[ "${{ github.event_name }}" == "workflow_dispatch" ]]; then
+            VER="${{ github.event.inputs.version }}"
+          else
+            VER="${GITHUB_REF_NAME#v}"
+          fi
+          echo "version=${VER}" >> "${GITHUB_OUTPUT}"
+          echo "Building version: ${VER}"
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: ${{ env.PYTHON_VERSION }}
+
+      - name: Install Python dependencies
+        run: |
+          python -m pip install --upgrade pip
+          pip install -e .
+          pip install pyinstaller
+
+      - name: Build executable with PyInstaller
+        run: pyinstaller cutter.spec --noconfirm
+        shell: cmd
+
+      - name: Verify PyInstaller build output
+        shell: cmd
+        run: |
+          if not exist "dist\cutter\cutter.exe" (
+            echo ERROR: cutter.exe not found in dist\cutter\
+            exit /b 1
+          )
+          for /F "usebackq" %%F in ("dist\cutter\cutter.exe") do (
+            echo cutter.exe size: %%~zF bytes
+            if %%~zF LSS 5000000 (
+              echo ERROR: cutter.exe too small (likely corrupted build)
+              exit /b 1
+            )
+          )
+
+      - name: Download official Npcap installer
+        shell: cmd
+        run: |
+          curl -L -o npcap-installer.exe "%NPCAP_DOWNLOAD_URL%"
+          if %ERRORLEVEL% neq 0 (
+            if exist "npcap-installer.exe" (
+              echo Using existing npcap-installer.exe
+            ) else (
+              echo ERROR: Could not obtain Npcap installer
+              exit /b 1
+            )
+          )
+          if not exist "npcap-installer.exe" (
+            echo ERROR: npcap-installer.exe not found
+            exit /b 1
+          )
+          for /F "usebackq" %%F in ("npcap-installer.exe") do (
+            if %%~zF LSS 1000000 (
+              echo ERROR: Npcap installer too small (download corrupted)
+              exit /b 1
+            )
+          )
+        env:
+          NPCAP_DOWNLOAD_URL: ${{ env.NPCAP_DOWNLOAD_URL }}
+
+      - name: Install Inno Setup
+        shell: pwsh
+        run: |
+          curl.exe -L -o is-installer.exe "$env:INNO_SETUP_URL"
+          Start-Process -Wait -FilePath "is-installer.exe" -ArgumentList "/VERYSILENT", "/SUPPRESSMSGBOXES", "/NORESTART", "/DIR=C:\Program Files (x86)\Inno Setup 6"
+          "C:\Program Files (x86)\Inno Setup 6" | Out-File -FilePath $env:GITHUB_PATH -Encoding utf8 -Append
+        env:
+          INNO_SETUP_URL: ${{ env.INNO_SETUP_URL }}
+
+      - name: Build Inno Setup installer
+        shell: cmd
+        run: |
+          iscc /dAppVersion="${{ steps.version.outputs.version }}" installer.iss
+          if %ERRORLEVEL% neq 0 (
+            echo ERROR: Inno Setup compilation failed
+            exit /b 1
+          )
+
+      - name: Verify installer integrity
+        shell: cmd
+        run: |
+          set "OUTPUT=dist\CutterSetup-v${{ steps.version.outputs.version }}.exe"
+          if not exist "%OUTPUT%" (
+            echo ERROR: Installer %OUTPUT% not found
+            dir dist\*.exe
+            exit /b 1
+          )
+          for /F "usebackq" %%F in ("%OUTPUT%") do (
+            echo Installer size: %%~zF bytes
+            if %%~zF LSS 10000000 (
+              echo ERROR: Installer too small - build likely corrupted
+              exit /b 1
+            )
+            if %%~zF GTR 500000000 (
+              echo ERROR: Installer unreasonably large - build likely corrupted
+              exit /b 1
+            )
+          )
+          echo Installer integrity check PASSED
+
+      - name: Compute SHA256 and generate release notes
+        shell: pwsh
+        run: |
+          $ver = "${{ steps.version.outputs.version }}"
+          $exe = "dist\CutterSetup-v$ver.exe"
+          $sha256 = (Get-FileHash -Path $exe -Algorithm SHA256).Hash.ToLower()
+          $sha256 | Out-File -FilePath "dist\CutterSetup-v$ver.exe.sha256" -Encoding ascii
+          Write-Host "SHA256: $sha256"
+
+          $notes = @"
+          ## Cutter - VoIP Analyzer v$ver
+
+          Automated release build from CI pipeline.
+
+          ### Assets
+          - CutterSetup-Windows-v$ver.exe - Windows installer (Npcap bundled, $((Get-Item $exe).Length / 1MB) MB)
+
+          ### SHA256 Checksum
+          ```
+          $sha256
+          ```
+          "@
+          $notes | Out-File -FilePath "release-notes.md" -Encoding utf8
+          Write-Host "Release notes written."
+
+      - name: Debug - list dist contents
+        shell: cmd
+        run: dir dist\CutterSetup-v${{ steps.version.outputs.version }}.*
+
+      - name: Create GitHub Release
+        uses: softprops/action-gh-release@v2
+        with:
+          tag_name: v${{ steps.version.outputs.version }}
+          name: Cutter v${{ steps.version.outputs.version }}
+          body_path: release-notes.md
+          files: |
+            dist/CutterSetup-v${{ steps.version.outputs.version }}.exe
+            dist/CutterSetup-v${{ steps.version.outputs.version }}.exe.sha256
+          draft: false
+          prerelease: false
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}

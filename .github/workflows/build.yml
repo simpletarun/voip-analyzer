@@ -19,6 +19,21 @@ jobs:
           pip install pyinstaller
       - name: Build executable
         run: pyinstaller cutter.spec --noconfirm
+        shell: cmd
+      - name: Verify build output
+        run: |
+          if not exist "dist\cutter\cutter.exe" (
+            echo ERROR: cutter.exe not found
+            exit /b 1
+          )
+          for %%F in ("dist\cutter\cutter.exe") do (
+            echo cutter.exe size: %%~zF bytes
+            if %%~zF LSS 5000000 (
+              echo ERROR: cutter.exe too small (likely corrupted)
+              exit /b 1
+            )
+          )
+        shell: cmd
       - name: Upload artifact
         uses: actions/upload-artifact@v4
         with:

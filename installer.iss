@@ -1,16 +1,24 @@
+; Cutter - VoIP Analyzer Installer
+; Build: iscc /dAppVersion="3.2.0" installer.iss
+#ifndef AppVersion
+  #define AppVersion "3.2.0"
+#endif
+
 [Setup]
 AppName=Cutter - VoIP Analyzer
-AppVersion=3.2.0
+AppVersion={#AppVersion}
 AppPublisher=VoIP Analyzer Team
 DefaultDirName={autopf}\Cutter
 DefaultGroupName=Cutter
 OutputDir=dist
-OutputBaseFilename=CutterSetup
-Compression=lzma2/max
+OutputBaseFilename=CutterSetup-v{#AppVersion}
+Compression=lzma2/normal
 SolidCompression=yes
 UninstallDisplayIcon={app}\cutter.exe
 PrivilegesRequired=admin
 ArchitecturesInstallIn64BitMode=x64compatible
+SignedUninstaller=yes
+MinVersion=10.0
 
 [Languages]
 Name: "english"; MessagesFile: "compiler:Default.isl"
