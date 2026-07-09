@@ -17,14 +17,13 @@ SolidCompression=yes
 UninstallDisplayIcon={app}\cutter.exe
 PrivilegesRequired=admin
 ArchitecturesInstallIn64BitMode=x64compatible
-SignedUninstaller=yes
 MinVersion=10.0
 
 [Languages]
 Name: "english"; MessagesFile: "compiler:Default.isl"
 
 [Tasks]
-Name: "desktopicon"; Description: "Create a &desktop shortcut"
+Name: "desktopicon"; Description: "Create a &desktop shortcut"; GroupDescription: "Additional icons:"
 
 [Files]
 Source: "dist\cutter\*"; DestDir: "{app}"; Flags: ignoreversion recursesubdirs createallsubdirs
@@ -37,6 +36,7 @@ Name: "{autodesktop}\Cutter"; Filename: "{app}\cutter.exe"; Tasks: desktopicon
 
 [Run]
 Filename: "{tmp}\npcap-installer.exe"; Parameters: "/S"; StatusMsg: "Installing Npcap (packet capture driver)..."; Flags: skipifdoesntexist; Check: NpcapNotInstalled
+Filename: "{app}\cutter.exe"; Description: "Launch Cutter now"; Flags: postinstall nowait skipifsilent unchecked
 
 [Code]
 function NpcapNotInstalled: Boolean;
