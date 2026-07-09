@@ -35,12 +35,6 @@ from src import __version__
 from src.composition import build_stack
 from src.config import AppConfig
 from src.database.connection import DatabaseConnection
-from src.export.csv_exporter import CsvExporter
-from src.export.excel_exporter import ExcelExporter
-from src.export.html_exporter import HtmlExporter
-from src.export.json_exporter import JsonExporter
-from src.export.markdown_exporter import MarkdownExporter
-from src.export.pdf_exporter import PdfExporter
 from src.models.ip_info import IPInfo
 from src.models.packet import PacketInfo
 from src.models.session import SessionReport
@@ -1021,26 +1015,32 @@ class VoIPAnalyzerGUI(QMainWindow):
             if selected_filter.startswith("CSV"):
                 if not path.endswith(".csv"):
                     path += ".csv"
+                from src.export.csv_exporter import CsvExporter
                 success = CsvExporter().export(report, self.all_data, path)
             elif selected_filter.startswith("JSON"):
                 if not path.endswith(".json"):
                     path += ".json"
+                from src.export.json_exporter import JsonExporter
                 success = JsonExporter().export(report, self.all_data, path)
             elif selected_filter.startswith("HTML"):
                 if not path.endswith(".html"):
                     path += ".html"
+                from src.export.html_exporter import HtmlExporter
                 success = HtmlExporter().export(report, self.all_data, path)
             elif selected_filter.startswith("Markdown"):
                 if not path.endswith(".md"):
                     path += ".md"
+                from src.export.markdown_exporter import MarkdownExporter
                 success = MarkdownExporter().export(report, self.all_data, path)
             elif selected_filter.startswith("Excel"):
                 if not path.endswith(".xlsx"):
                     path += ".xlsx"
+                from src.export.excel_exporter import ExcelExporter
                 success = ExcelExporter().export(report, self.all_data, path)
             elif selected_filter.startswith("PDF"):
                 if not path.endswith(".pdf"):
                     path += ".pdf"
+                from src.export.pdf_exporter import PdfExporter
                 success = PdfExporter().export(report, self.all_data, path)
 
             if success:

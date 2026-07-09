@@ -9,10 +9,13 @@ logger = logging.getLogger(__name__)
 
 HAS_OPENPYXL = False
 try:
+    import numpy
+    if not hasattr(numpy, 'short'):
+        numpy.short = numpy.int16
     from openpyxl import Workbook
     from openpyxl.styles import Font
     HAS_OPENPYXL = True
-except ImportError:
+except (ImportError, AttributeError):
     pass
 
 
