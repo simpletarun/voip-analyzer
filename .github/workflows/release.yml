@@ -145,7 +145,7 @@ jobs:
           Automated release build from CI pipeline.
 
           ### Assets
-          - CutterSetup-Windows-v$ver.exe - Windows installer (Npcap bundled, $((Get-Item $exe).Length / 1MB) MB)
+          - CutterSetup-v$ver.exe - Windows installer (Npcap bundled, $((Get-Item $exe).Length / 1MB) MB)
 
           ### SHA256 Checksum
           ```
