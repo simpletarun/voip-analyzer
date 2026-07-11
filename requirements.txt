@@ -1,0 +1,14 @@
+# Runtime dependencies (mirrors pyproject.toml [project].dependencies)
+PyQt6>=6.5
+PyQt6-WebEngine>=6.5
+scapy>=2.5
+requests>=2.31
+python-dotenv>=1.0
+folium>=0.15
+openpyxl>=3.1
+reportlab>=4.0
+
+# Build / dev tooling
+PyInstaller>=6.0
+pytest>=8.0
+pytest-qt>=4.2

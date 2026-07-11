@@ -3,7 +3,7 @@ import logging.handlers
 import os
 import sys
 
-from PyQt6.QtWidgets import QApplication, QMessageBox
+from PyQt6.QtWidgets import QApplication
 
 from src import __version__
 from src.config import AppConfig
@@ -47,30 +47,6 @@ def setup_logging(config: AppConfig) -> str:
     return log_file
 
 
-def show_disclaimer() -> bool:
-    msg = QMessageBox()
-    msg.setIcon(QMessageBox.Icon.Warning)
-    msg.setWindowTitle("LEGAL DISCLAIMER & TERMS OF USE")
-    msg.setText("<b>WARNING: FOR AUTHORIZED USE ONLY</b>")
-    msg.setInformativeText(
-        "This tool is strictly for educational purposes and authorized "
-        "network analysis.\n\n"
-        "Intercepting, monitoring, or analyzing communications without "
-        "explicit consent from all parties is illegal in many jurisdictions.\n\n"
-        "By clicking 'Accept', you confirm:\n"
-        "- You have the legal right to monitor this network\n"
-        "- You comply with all applicable laws\n"
-        "- All data is stored locally on your device\n"
-        "- Developers assume no liability for misuse\n\n"
-        "Privacy: No phone numbers or content are transmitted. "
-        "Only public IP metadata is queried from ip-api.com."
-    )
-    msg.setStandardButtons(
-        QMessageBox.StandardButton.Ok | QMessageBox.StandardButton.Cancel)
-    msg.setDefaultButton(QMessageBox.StandardButton.Cancel)
-    return msg.exec() == QMessageBox.StandardButton.Ok
-
-
 def create_app(config: AppConfig | None = None) -> QApplication:
     app = QApplication(sys.argv)
     app.setStyle("Fusion")
@@ -89,9 +65,6 @@ def run() -> int:
     logger.info("=" * 60)
 
     app = create_app(config)
-
-    if not show_disclaimer():
-        return 0
 
     window = VoIPAnalyzerGUI(config)
     window.show()

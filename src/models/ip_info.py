@@ -9,6 +9,17 @@ class IPInfo:
     org: str = "Unknown"
     city: str = "Unknown"
     country: str = "Unknown"
+    continent: str = ""
+    continent_code: str = ""
+    country_code: str = ""
+    region_code: str = ""
+    region_name: str = ""
+    district: str = ""
+    zip: str = ""
+    timezone: str = ""
+    offset: int = 0
+    currency: str = ""
+    asname: str = ""
     lat: float = 0.0
     lon: float = 0.0
     asn: str = "N/A"

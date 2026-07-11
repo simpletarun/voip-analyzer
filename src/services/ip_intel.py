@@ -65,36 +65,85 @@ class IPIntelligence:
     def _minimal(self, ip: str) -> IPInfo:
         return IPInfo(ip=ip, is_ipv6=":" in ip, classification="UNKNOWN")
 
+    def _fetch_ip_api(self, ip: str, fields: str) -> dict | None:
+        """Query ip-api trying both HTTPS and HTTP.
+
+        Some networks block one scheme but allow the other (HTTPS is
+        frequently 403'd on the free endpoint), so we try both and cache
+        whichever works for subsequent calls.
+        """
+        preferred = getattr(self, "_preferred_scheme", None)
+        schemes = [preferred] if preferred else ["https", "http"]
+        last_err: object = None
+        for scheme in schemes:
+            try:
+                url = f"{scheme}://ip-api.com/json/{ip}?fields={fields}"
+                if self._session is not None:
+                    r = self._session.get(url)
+                else:
+                    import requests
+
+                    r = requests.get(
+                        url, timeout=self.config.api_timeout,
+                        headers={"User-Agent": "VoIPAnalyzer/3.2.0"})
+                d = r.json()
+                if d.get("status") == "success":
+                    self._preferred_scheme = scheme
+                    return d
+                last_err = d.get("status")
+            except Exception as e:  # noqa: BLE001
+                last_err = e
+        if preferred is None and last_err is not None:
+            other = "http" if schemes[0] == "https" else "https"
+            try:
+                url = f"{other}://ip-api.com/json/{ip}?fields={fields}"
+                if self._session is not None:
+                    r = self._session.get(url)
+                else:
+                    import requests
+
+                    r = requests.get(
+                        url, timeout=self.config.api_timeout,
+                        headers={"User-Agent": "VoIPAnalyzer/3.2.0"})
+                d = r.json()
+                if d.get("status") == "success":
+                    self._preferred_scheme = other
+                    return d
+            except Exception:  # noqa: BLE001
+                pass
+        return None
+
     def _query_api(self, ip: str) -> IPInfo:
         info = IPInfo(ip=ip, is_ipv6=":" in ip)
-        try:
-            url = (f"https://ip-api.com/json/{ip}"
-                   "?fields=status,isp,org,city,country,as,lat,lon,mobile,proxy,hosting,reverse")
-            if self._session is not None:
-                r = self._session.get(url)
-            else:
-                import requests
-
-                r = requests.get(url, timeout=self.config.api_timeout,
-                                  headers={"User-Agent": "VoIPAnalyzer/3.2.0"})
-            d = r.json()
-            if d.get("status") == "success":
-                info.isp = d.get("isp", "Unknown")
-                info.org = d.get("org", "Unknown")
-                info.city = d.get("city", "Unknown")
-                info.country = d.get("country", "Unknown")
-                info.lat = float(d.get("lat", 0) or 0)
-                info.lon = float(d.get("lon", 0) or 0)
-                info.asn = d.get("as", "N/A") or "N/A"
-                info.reverse_dns = d.get("reverse")
-                info.is_mobile = bool(d.get("mobile", False))
-                info.is_proxy = bool(d.get("proxy", False))
-                info.is_hosting = bool(d.get("hosting", False))
-            else:
-                logger.warning("ip-api.com returned status '%s' for %s",
-                               d.get("status"), ip)
-        except Exception as e:
-            logger.warning("IP lookup failed for %s: %s", ip, e)
+        fields = ("status,continent,continentCode,country,countryCode,region,"
+                  "regionName,city,district,zip,lat,lon,timezone,offset,currency,"
+                  "isp,org,as,asname,mobile,proxy,hosting,reverse")
+        d = self._fetch_ip_api(ip, fields)
+        if d:
+            info.isp = d.get("isp", "Unknown")
+            info.org = d.get("org", "Unknown")
+            info.city = d.get("city", "Unknown")
+            info.country = d.get("country", "Unknown")
+            info.continent = d.get("continent", "")
+            info.continent_code = d.get("continentCode", "")
+            info.country_code = d.get("countryCode", "")
+            info.region_code = d.get("region", "")
+            info.region_name = d.get("regionName", "")
+            info.district = d.get("district", "")
+            info.zip = d.get("zip", "")
+            info.timezone = d.get("timezone", "")
+            info.offset = int(d.get("offset", 0) or 0)
+            info.currency = d.get("currency", "")
+            info.asname = d.get("asname", "")
+            info.lat = float(d.get("lat", 0) or 0)
+            info.lon = float(d.get("lon", 0) or 0)
+            info.asn = d.get("as", "N/A") or "N/A"
+            info.reverse_dns = d.get("reverse")
+            info.is_mobile = bool(d.get("mobile", False))
+            info.is_proxy = bool(d.get("proxy", False))
+            info.is_hosting = bool(d.get("hosting", False))
+        else:
+            logger.warning("IP lookup failed for %s", ip)
 
         if not info.reverse_dns:
             try:

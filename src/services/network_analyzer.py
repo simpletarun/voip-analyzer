@@ -14,6 +14,9 @@ class NetworkAnalyzer:
         self.my_local_ip: str = "127.0.0.1"
         self.my_local_ip_v6: str | None = None
         self.my_isp: str = "Unknown"
+        self.my_city: str = "Unknown"
+        self.my_region: str = "Unknown"
+        self.my_country: str = "Unknown"
         self.my_lat: float = 20.0
         self.my_lon: float = 0.0
         self._session = build_session(5)
@@ -60,20 +63,24 @@ class NetworkAnalyzer:
         self._geolocate()
 
     def _geolocate(self) -> None:
-        if not self.my_public_ip:
-            return
-        try:
-            r = self._session.get(
-                f"https://ip-api.com/json/{self.my_public_ip}"
-                "?fields=isp,city,country,lat,lon", timeout=5,
-                headers={"User-Agent": "VoIPAnalyzer/3.2.0"})
-            d = r.json()
-            if d.get("status") == "success":
-                self.my_isp = d.get("isp", "Unknown")
-                self.my_lat = float(d.get("lat", 20.0) or 20.0)
-                self.my_lon = float(d.get("lon", 0.0) or 0.0)
-        except Exception:
-            pass
+        for scheme in ("https", "http"):
+            try:
+                r = self._session.get(
+                    f"{scheme}://ip-api.com/json/"
+                    "?fields=status,isp,city,regionName,country,lat,lon,query",
+                    timeout=5, headers={"User-Agent": "VoIPAnalyzer/3.2.0"})
+                d = r.json()
+                if d.get("status") == "success":
+                    self.my_public_ip = self.my_public_ip or d.get("query")
+                    self.my_isp = d.get("isp", "Unknown")
+                    self.my_city = d.get("city", "Unknown")
+                    self.my_region = d.get("regionName", "Unknown")
+                    self.my_country = d.get("country", "Unknown")
+                    self.my_lat = float(d.get("lat", 20.0) or 20.0)
+                    self.my_lon = float(d.get("lon", 0.0) or 0.0)
+                    return
+            except Exception:
+                continue
 
     def is_my_ip(self, ip: str | None) -> bool:
         if not ip:

@@ -8,7 +8,7 @@ import time
 from datetime import datetime
 from re import Pattern
 
-from PyQt6.QtCore import Qt, QTimer, QUrl
+from PyQt6.QtCore import QEvent, Qt, QTimer, QUrl
 from PyQt6.QtGui import QAction, QColor, QDesktopServices, QKeySequence
 from PyQt6.QtWidgets import (
     QApplication,
@@ -23,6 +23,7 @@ from PyQt6.QtWidgets import (
     QPlainTextEdit,
     QProgressBar,
     QPushButton,
+    QSizePolicy,
     QSplitter,
     QTableWidget,
     QTableWidgetItem,
@@ -85,6 +86,18 @@ def _safe_compile_regex(pattern: str, timeout: float = 0.5) -> Pattern | None:
         return None
 
 
+_TILES = {
+    "Dark": ("CartoDB dark_matter", "© OpenStreetMap, © CARTO"),
+    "Light": ("CartoDB positron", "© OpenStreetMap, © CARTO"),
+    "Street": ("OpenStreetMap", "© OpenStreetMap contributors"),
+    "Satellite": (
+        "https://server.arcgisonline.com/ArcGIS/rest/services/"
+        "World_Imagery/MapServer/tile/{z}/{y}/{x}",
+        "© Esri, Maxar, Earthstar Geographics",
+    ),
+}
+
+
 class VoIPAnalyzerGUI(QMainWindow):
     def __init__(self, config: AppConfig):
         super().__init__()
@@ -107,6 +120,14 @@ class VoIPAnalyzerGUI(QMainWindow):
         self._my_lon: float = 0.0
         self._my_ip: str = "N/A"
         self._has_location: bool = False
+        self._map_layout: "QVBoxLayout | None" = None
+        self._tile_name: str = "Dark"
+        self._map_fs: bool = False
+        self._fs_window: "QMainWindow | None" = None
+        self._fs_view: "QWebEngineView | None" = None
+        self._my_city: str = "Unknown"
+        self._my_region: str = "Unknown"
+        self._my_country: str = "Unknown"
 
         self._ui_event_queue: list = []
         self._ui_event_lock = threading.Lock()
@@ -288,9 +309,42 @@ class VoIPAnalyzerGUI(QMainWindow):
 
         mw = QWidget()
         ml = QVBoxLayout(mw)
+        map_header = QHBoxLayout()
+        map_header.addWidget(QLabel("Map Style:"))
+        self.tile_combo = QComboBox()
+        self.tile_combo.addItems(["Dark", "Satellite", "Street", "Light"])
+        self.tile_combo.setCurrentText(self._tile_name)
+        self.tile_combo.currentTextChanged.connect(self._on_tile_changed)
+        map_header.addWidget(self.tile_combo)
+        self.fullscreen_btn = QPushButton("⛶ Full Screen (F)")
+        self.fullscreen_btn.clicked.connect(self._toggle_map_fullscreen)
+        map_header.addWidget(self.fullscreen_btn)
+        map_header.addStretch()
+        ml.addLayout(map_header)
+
+        legend = QLabel(
+            "<span style='color:#0ff;'>&#9679;</span> YOU &nbsp;&nbsp; "
+            "<span style='color:#0f0;'>&#9679;</span> P2P Peer &nbsp;&nbsp; "
+            "<span style='color:#fa0;'>&#9679;</span> Relay Server")
+        legend.setStyleSheet(
+            "padding:4px 8px; background:#001a1a; border:1px solid #0a4; "
+            "color:#0f0; font-weight:bold;")
+        ml.addWidget(legend)
+
         if HAS_WEBENGINE and HAS_FOLIUM:
+            self._map_layout = ml
             self.web_view = QWebEngineView()
-            ml.addWidget(self.web_view)
+            self.web_view.setSizePolicy(
+                QSizePolicy.Policy.Expanding, QSizePolicy.Policy.Expanding)
+            frame = QFrame()
+            frame.setFrameShape(QFrame.Shape.StyledPanel)
+            frame.setStyleSheet(
+                "QFrame{border:2px solid #0ff; border-radius:4px;}")
+            fl = QVBoxLayout(frame)
+            fl.setContentsMargins(2, 2, 2, 2)
+            fl.addWidget(self.web_view)
+            ml.addWidget(frame, 1)
+            self.web_view.installEventFilter(self)
             self._map_html = ""
         else:
             map_btn_row = QHBoxLayout()
@@ -395,11 +449,16 @@ class VoIPAnalyzerGUI(QMainWindow):
         ana = self.capturer.analyzer
         self._my_lat, self._my_lon = ana.my_lat, ana.my_lon
         self._my_ip = ana.my_public_ip or "N/A"
+        self._my_city = ana.my_city
+        self._my_region = ana.my_region
+        self._my_country = ana.my_country
         self._has_location = True
         v6_str = f" | IPv6: {ana.my_public_ip_v6}" if ana.my_public_ip_v6 else ""
+        loc = (f"{ana.my_city}, {ana.my_region}, {ana.my_country}"
+               if ana.my_country not in ("Unknown", "") else "Unknown")
         self.ip_label.setText(
             f"IPv4: {ana.my_public_ip}{v6_str} | "
-            f"Location: {ana.my_lat:.2f}, {ana.my_lon:.2f}")
+            f"Location: {loc} ({ana.my_lat:.2f}, {ana.my_lon:.2f})")
 
         self._capture_thread = threading.Thread(
             target=self.capturer.run, daemon=True, name="Capture")
@@ -880,23 +939,27 @@ class VoIPAnalyzerGUI(QMainWindow):
             parts.append(f"{ip}:{data.get('type')}:{intel.lat:.4f}:{intel.lon:.4f}")
         return "|".join(parts)
 
-    def _render_map(self) -> None:
+    def _render_map(self, force: bool = False) -> None:
         if not (HAS_WEBENGINE and HAS_FOLIUM):
             return
         # Only reload the web view when the map data actually changed,
         # otherwise setHtml() triggers a visible flash on every refresh.
-        sig = self._map_signature_str()
-        if sig == self._map_signature:
+        sig = self._map_signature_str() + f"|tile:{self._tile_name}"
+        if not force and sig == self._map_signature:
             return
         self._map_signature = sig
         try:
             lat, lon, my_ip = self._my_lat, self._my_lon, self._my_ip
+            tiles, attr = self._tile_for(self._tile_name)
             m = folium.Map(location=[lat, lon], zoom_start=2,
-                           tiles="CartoDB dark_matter")
+                           tiles=tiles, attr=attr)
+            you_loc = (f"{self._my_city}, {self._my_region}, {self._my_country}"
+                       if self._my_country not in ("Unknown", "")
+                       else f"{self._my_city}, {self._my_region}")
             if self._has_location:
                 folium.CircleMarker(
                     location=[lat, lon], radius=12,
-                    popup=f"<b>YOU</b><br>{my_ip}",
+                    popup=f"<b>YOU</b><br>{my_ip}<br>{you_loc}",
                     color="cyan", fill=True, fill_color="cyan"
                 ).add_to(m)
             for ip, data in self.all_data.items():
@@ -915,10 +978,86 @@ class VoIPAnalyzerGUI(QMainWindow):
                         locations=[[lat, lon], [intel.lat, intel.lon]],
                         color=c, weight=2, opacity=0.6
                     ).add_to(m)
-            self._map_html = m._repr_html_()
-            self.web_view.setHtml(self._map_html, QUrl("about:blank"))
+            raw = m._repr_html_()
+            html = (
+                "<!DOCTYPE html><html><head><meta charset='utf-8'>"
+                "<style>html,body{height:100%;width:100%;margin:0;"
+                "padding:0;background:#000;overflow:hidden;}"
+                ".folium-map{height:100% !important;width:100% !important;}"
+                "</style></head><body>" + raw + "</body></html>"
+            )
+            self._map_html = html
+            self.web_view.setHtml(html, QUrl("about:blank"))
+            fs_view = getattr(self, "_fs_view", None)
+            if fs_view is not None:
+                fs_view.setHtml(html, QUrl("about:blank"))
         except Exception as e:
             logger.error("Map render error: %s", e)
+
+    @staticmethod
+    def _tile_for(name: str) -> tuple[str, str]:
+        return _TILES.get(name, _TILES["Dark"])
+
+    def _on_tile_changed(self, name: str) -> None:
+        self._tile_name = name
+        self._render_map(force=True)
+
+    def _toggle_map_fullscreen(self) -> None:
+        if not getattr(self, "web_view", None):
+            return
+        if self._map_fs:
+            self._exit_map_fullscreen()
+            return
+        fs = QWidget()
+        fs.setWindowTitle("Map - Full Screen  (Esc to exit)")
+        fs.setWindowFlag(Qt.WindowType.Window)
+        container = QVBoxLayout(fs)
+        container.setContentsMargins(0, 0, 0, 0)
+        bar = QHBoxLayout()
+        bar.setContentsMargins(8, 6, 8, 6)
+        bar.addWidget(QLabel(
+            "<b style='color:#0ff;'>MAP &mdash; FULL SCREEN</b>"))
+        bar.addStretch()
+        exit_btn = QPushButton("✕ Exit Full Screen (Esc)")
+        exit_btn.clicked.connect(self._exit_map_fullscreen)
+        bar.addWidget(exit_btn)
+        container.addLayout(bar)
+        view = QWebEngineView()
+        view.setSizePolicy(
+            QSizePolicy.Policy.Expanding, QSizePolicy.Policy.Expanding)
+        container.addWidget(view, 1)
+        fs.installEventFilter(self)
+        self._fs_window = fs
+        self._fs_view = view
+        self._map_fs = True
+        fs.showFullScreen()
+        # Render only AFTER the window is laid out, otherwise Leaflet
+        # initializes at 0x0 and the map stays blank.
+        QTimer.singleShot(40, self._push_fs_html)
+
+    def _push_fs_html(self) -> None:
+        if not self._map_fs or self._fs_view is None:
+            return
+        self._render_map(force=True)
+
+    def _exit_map_fullscreen(self) -> None:
+        if not self._map_fs:
+            return
+        if self._fs_window is not None:
+            self._fs_window.close()
+            self._fs_window = None
+            self._fs_view = None
+        self._map_fs = False
+
+    def eventFilter(self, obj, event) -> bool:
+        if event.type() == QEvent.Type.KeyPress:
+            if event.key() == Qt.Key.Key_Escape and self._map_fs:
+                self._exit_map_fullscreen()
+                return True
+            if event.key() == Qt.Key.Key_F and self._map_fs:
+                self._toggle_map_fullscreen()
+                return True
+        return super().eventFilter(obj, event)
 
     def _update_map_table(self) -> None:
         if hasattr(self, "web_view") and HAS_WEBENGINE and HAS_FOLIUM:
@@ -962,8 +1101,9 @@ class VoIPAnalyzerGUI(QMainWindow):
 
             import folium
             lat, lon, my_ip = self._my_lat, self._my_lon, self._my_ip
+            tiles, attr = self._tile_for(self._tile_name)
             m = folium.Map(location=[lat, lon], zoom_start=2,
-                           tiles="CartoDB dark_matter")
+                           tiles=tiles, attr=attr)
             if self._has_location:
                 folium.CircleMarker(
                     location=[lat, lon], radius=12,
