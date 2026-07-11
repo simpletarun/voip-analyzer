@@ -1,34 +1,74 @@
 # Cutter — VoIP Analyzer
 
-![Cutter VoIP Analyzer](assets/banner.svg)
+<p align="center">
+  <img src="assets/banner.svg" alt="Cutter VoIP Analyzer" width="640"/>
+</p>
 
-> Real-time WhatsApp VoIP traffic analyzer with GUI, P2P peer detection, and geolocation mapping.
+<p align="center">
+  <a href="https://github.com/simpletarun/voip-analyzer/releases"><img src="https://img.shields.io/badge/version-3.2.0-blue" alt="version"></a>
+  <img src="https://img.shields.io/badge/license-MIT-green" alt="license">
+  <img src="https://img.shields.io/badge/python-3.10%2B-blue" alt="python">
+  <img src="https://img.shields.io/badge/platform-Windows%20%7C%20Linux-lightgrey" alt="platform">
+</p>
 
-**Cutter** is a forensic-grade network analysis tool that captures, classifies, and visualizes WhatsApp VoIP traffic on your local network. Built for authorized security researchers, network administrators, and digital forensics professionals.
+> Real-time WhatsApp / Signal / Telegram / Google Meet VoIP traffic analyzer with GUI, P2P peer detection, rich IP intelligence, and interactive geolocation mapping.
+
+**Cutter** is a forensic-grade network analysis tool that captures, classifies, and visualizes VoIP traffic on your local network. It is built for authorized security researchers, network administrators, and digital-forensics professionals.
+
+---
+
+## Table of Contents
+
+- [Features](#features)
+- [What's New in v3.2.0](#whats-new-in-v320)
+- [Download](#download)
+- [Installation](#installation)
+- [Quick Start](#quick-start)
+- [Configuration](#configuration)
+- [Enrichment Plugins](#enrichment-plugins)
+- [Export Formats](#export-formats)
+- [Project Structure](#project-structure)
+- [Development](#development)
+- [Legal Notice](#legal-notice)
+- [License](#license)
 
 ---
 
 ## Features
 
-- **Live Packet Capture** — Real-time sniffing of WhatsApp VoIP traffic using Npcap/WinPcap
-- **P2P Peer Detection** — Automatically identifies peer-to-peer call participants via STUN, DTLS, and SRTP analysis
-- **IP Intelligence** — Geolocates IPs via ip-api.com with LRU caching and rate limiting
-- **Interactive Map** — Visualizes call routes on a Folium-powered map (embedded in the UI)
-- **Multi-Protocol** — Detects WhatsApp, Signal, Telegram, and Google Meet traffic
-- **Session Recording** — Logs all sessions to SQLite with CSV/JSON/HTML export
-- **Dark & Light Themes** — Switchable UI themes
-- **Standalone EXE** — No Python installation required (Windows)
+- **Live Packet Capture** — Real-time sniffing of VoIP traffic using Npcap (Windows) / libpcap (Linux).
+- **P2P Peer Detection** — Automatically identifies peer-to-peer call participants via STUN, DTLS, and SRTP analysis.
+- **Accurate Geolocation** — Geolocates IPs via ip-api.com with dual HTTP/HTTPS fallback, LRU caching, and rate limiting. Your own location is detected to city / state / country and pinned correctly on the map.
+- **Interactive Map** — Folium-powered map embedded in the UI with **4 basemap modes** (Dark, Satellite, Street, Light), a full-screen view with an Exit button, and a route/peer overlay.
+- **Rich IP Metadata** — ISP, ASN, organization, region, country, postal code, timezone, and currency shown in a detailed inspector.
+- **Multi-Protocol** — Detects WhatsApp, Signal, Telegram, and Google Meet traffic.
+- **Session Recording** — Logs every session to SQLite with CSV / JSON / HTML / Markdown / Excel / PDF export.
+- **Dark & Light Themes** — Switchable UI themes.
+- **Standalone Build** — Self-contained Windows installer; no Python install required.
+
+---
+
+## What's New in v3.2.0
+
+- Fixed geolocation: the **YOU** marker now pins your real detected latitude/longitude (dual HTTP/HTTPS ip-api fallback).
+- Added **city / state / country** to location detection and the map popup.
+- Added **rich IP metadata** in the inspector (ISP, ASN, org, region, country, postal code, timezone, currency).
+- Upgraded the map with **4 basemap modes** (Dark, Satellite, Street, Light).
+- Added a **full-screen map** view with an Exit button (fixed the blank / 0×0 render bug).
+- Removed the startup legal-disclaimer popup — the app now opens straight to the Dashboard.
+- Hardened the PyInstaller build so all runtime dependencies (requests, scapy, folium, openpyxl, reportlab) are bundled.
 
 ---
 
 ## Download
 
-Grab the latest installer from the [Releases page](https://github.com/simpletarun/voip-analyzer/releases).
+Grab the latest build from the [Releases page](https://github.com/simpletarun/voip-analyzer/releases).
 
-| File | Description |
-|------|-------------|
-| `CutterSetup-Windows-v3.1.0.exe` | Windows installer (Npcap bundled, 204 MB) |
-| `Source code (zip)` | Python source code for manual setup |
+| File | Platform | Description |
+|------|----------|-------------|
+| `CutterSetup-v3.2.0.exe` | Windows | Self-contained installer (Npcap bundled, ~166 MB) |
+| `Source code (zip)` | Any | Full Python source for manual setup |
+| `Source code (tar.gz)` | Linux / macOS | Full Python source for manual setup |
 
 ---
 
@@ -36,37 +76,49 @@ Grab the latest installer from the [Releases page](https://github.com/simpletaru
 
 ### Windows (Installer — Recommended)
 
-1. Download `CutterSetup-Windows-v3.1.0.exe` from [Releases](https://github.com/simpletarun/voip-analyzer/releases)
-2. Run the installer (admin rights required)
-3. Npcap (packet capture driver) is installed automatically if not present
-4. Launch **Cutter** from the Start Menu or Desktop shortcut
+1. Download `CutterSetup-v3.2.0.exe` from [Releases](https://github.com/simpletarun/voip-analyzer/releases).
+2. Run the installer (administrator rights required).
+3. Npcap (the packet-capture driver) is installed automatically if not present.
+4. Launch **Cutter** from the Start Menu or Desktop shortcut.
 
 **Requirements:**
-- Windows 10/11 (64-bit)
-- Administrator privileges for packet capture
-- Network adapter with promiscuous mode support
+- Windows 10 / 11 (64-bit)
+- Administrator privileges for live packet capture
+- A network adapter that supports promiscuous mode
 
-### From Source (Python)
+### From Source (Windows / Linux / macOS)
 
 **Prerequisites:**
-- Python 3.10+
-- [Npcap](https://npcap.com) installed (WinPcap alternative)
+- Python 3.10 or newer
+- [Npcap](https://npcap.com) on Windows (libpcap on Linux/macOS)
 
 ```bash
 git clone https://github.com/simpletarun/voip-analyzer.git
 cd voip-analyzer
-pip install .
-python -m src.main
+python -m venv venv
+source venv/bin/activate        # Windows: venv\Scripts\activate
+pip install -r requirements.txt
+python -m src.app
 ```
 
-> **Note:** Run as Administrator on Windows for packet capture access.
+> **Note:** On Linux/macOS, run with `sudo python -m src.app` for live capture access.
+
+---
+
+## Quick Start
+
+1. Launch **Cutter** (installer shortcut, or `python -m src.app` from source).
+2. Select your network interface from the dropdown.
+3. Click **Start Capture** to begin sniffing VoIP traffic.
+4. Inspect packets, P2P peers, and IP intelligence in real time.
+5. Open the **Map** tab to visualize call routes; switch basemaps or go full-screen.
+6. Export a report from **File → Export Report**.
 
 ---
 
 ## Configuration
 
-All settings live in `config/config.json` and can be overridden via a `.env`
-file (copy `.env.example` → `.env`). No secrets are stored in code.
+All settings live in `config/config.json` and can be overridden via a `.env` file (copy `.env.example` → `.env`). No secrets are stored in code.
 
 | Setting | Default | Purpose |
 |---------|---------|---------|
@@ -79,8 +131,7 @@ file (copy `.env.example` → `.env`). No secrets are stored in code.
 
 ## Enrichment Plugins
 
-Optional third-party intelligence is loaded from `src/enrichment/` when the
-corresponding API key is present in `.env`:
+Optional third-party intelligence is loaded from `src/enrichment/` when the corresponding API key is present in `.env`:
 
 | Plugin | Env var | Adds |
 |--------|---------|------|
@@ -89,48 +140,63 @@ corresponding API key is present in `.env`:
 | Shodan | `SHODAN_API_KEY` | open ports, org, OS |
 | IPQualityScore | `IPQS_API_KEY` | VPN/Proxy/Tor + fraud score |
 
-Lookups run **concurrently** and feed the abuse/fraud/VPN/Tor scoring.
+Lookups run **concurrently** and feed the abuse / fraud / VPN / Tor scoring.
 
 ## Export Formats
 
-CSV, JSON, HTML, **Markdown**, **Excel** and **PDF** — all timestamped and
-available from *File → Export Report*.
+CSV, JSON, HTML, **Markdown**, **Excel**, and **PDF** — all timestamped and available from *File → Export Report*.
 
 ---
 
-## Usage
+## Project Structure
 
-### First Launch
+```
+voip-analyzer/
+├── src/                     # Application source
+│   ├── app.py               # Application entry point (run())
+│   ├── main.py              # Console-script entry point
+│   ├── composition.py       # Dependency wiring
+│   ├── config.py            # Configuration management
+│   ├── database/            # SQLite storage layer (connections + repositories)
+│   ├── export/              # CSV/JSON/HTML/Markdown/Excel/PDF exporters
+│   ├── models/              # Data models (Packet, Session, IPInfo)
+│   ├── plugins/             # VoIP protocol classifiers (WhatsApp, Signal, etc.)
+│   ├── enrichment/          # Third-party IP-intel plugins (VirusTotal, etc.)
+│   ├── services/            # Capturer, IP intel, network analyzer
+│   ├── ui/                  # PyQt6 GUI (main window, dialogs, theme, widgets)
+│   └── utils/               # Validation, errors, concurrency helpers
+├── tests/                   # Test suite (pytest)
+├── docs/                    # Architecture, plugin & DB documentation
+├── config/                  # Default configuration
+├── assets/                  # Banner and UI assets
+├── cutter.spec              # PyInstaller spec for the standalone build
+├── installer.iss            # Inno Setup script for the Windows installer
+├── pyproject.toml          # Python project metadata
+└── README.md
+```
 
-1. Accept the legal disclaimer
-2. Select your network interface from the dropdown
-3. Click **Start Capture**
+---
 
-### Interface Overview
+## Development
 
-| Section | Description |
-|---------|-------------|
-| **Packet Table** | Real-time list of captured VoIP packets (source, dest, protocol, port, etc.) |
-| **P2P Peers** | Detected peer-to-peer call participants with confidence scores |
-| **IP Details** | Geolocation, ISP, and organization data for each IP |
-| **Map** | Geographic visualization of call routes |
-| **Status Bar** | Packet count, capture rate, and application status |
+```bash
+# Create a virtual environment and install dev dependencies
+python -m venv venv
+source venv/bin/activate        # Windows: venv\Scripts\activate
+pip install -e ".[dev]"
 
-### Controls
+# Run the test suite
+pytest
 
-- **Start/Stop Capture** — Begin or pause packet sniffing
-- **Clear** — Clear current packet buffer
-- **Export** — Export session data as CSV, JSON, or HTML report
-- **Filter** — Filter by IP, port, or protocol
-- **Theme Toggle** — Switch between dark and light mode
+# Build the standalone executable (PyInstaller)
+pyinstaller cutter.spec
 
-### Export Formats
+# Build the Windows installer (requires Inno Setup)
+iscc installer.iss
+```
 
-| Format | Contents |
-|--------|----------|
-| **CSV** | Tabular packet data for spreadsheet analysis |
-| **JSON** | Machine-readable structured data |
-| **HTML** | Interactive report with embedded map |
+> The standalone build is produced from `cutter.spec`, which bundles the Qt6
+> WebEngine runtime required for the interactive map.
 
 ---
 
@@ -147,50 +213,6 @@ available from *File → Export Report*.
 > - The developers assume no liability for misuse
 >
 > **Privacy:** No phone numbers or message content are transmitted. Only public IP metadata is queried from ip-api.com.
-
----
-
-## Project Structure
-
-```
-voip-analyzer/
-├── src/                  # Application source
-│   ├── app.py            # Entry point & setup
-│   ├── config.py         # Configuration management
-│   ├── database/         # SQLite storage layer (migrations + repositories)
-│   ├── export/           # CSV/JSON/HTML/Markdown/Excel/PDF exporters
-│   ├── models/           # Data models (Packet, Session, IPInfo)
-│   ├── plugins/          # VoIP protocol classifiers (WhatsApp, Signal, etc.)
-│   ├── enrichment/       # Third-party IP intel plugins (VirusTotal, etc.)
-│   ├── services/         # Capturer, IP intel, network analyzer
-│   ├── ui/               # PyQt6 GUI (main window, dialogs, theme)
-│   └── utils/            # Validation, errors, concurrency helpers
-├── tests/                # Test suite (pytest)
-├── docs/                 # Architecture, plugin & DB documentation
-├── config/               # Default configuration
-├── installer.iss         # Inno Setup script for EXE packaging
-├── pyproject.toml        # Python project metadata
-└── README.md
-```
-
----
-
-## Development
-
-```bash
-# Install dev dependencies
-pip install -e ".[dev]"
-
-# Run tests
-pytest
-
-# Build standalone EXE
-pip install pyinstaller
-python -m PyInstaller cutter.py --onedir --windowed --name cutter --add-data "config/config.json;config" --paths . --exclude PyQt5 --exclude PySide6
-
-# Build installer (requires Inno Setup)
-iscc installer.iss
-```
 
 ---
 
