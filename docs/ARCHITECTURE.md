@@ -25,7 +25,7 @@ flowchart TD
 
 | Layer | Package | Responsibility |
 |-------|---------|----------------|
-| Entry | `src/main.py`, `src/app.py` | bootstrap, logging, disclaimer |
+| Entry | `src/main.py`, `src/app.py` | bootstrap, logging, GUI |
 | Config | `src/config.py` | `AppConfig` dataclass, JSON + `.env` |
 | Models | `src/models/` | `PacketInfo`, `IPInfo`, `SessionReport` |
 | Data | `src/database/` | SQLite connection, migrations, repositories |

@@ -8,13 +8,13 @@
 ```bash
 git clone <repo>
 cd voip-analyzer
-python -m venv .venv && .venv\Scripts\activate
+python -m venv venv && venv\Scripts\activate
 pip install -e ".[dev]"
 ```
 
 ## Running
 ```bash
-python -m src.main          # or: voip-analyzer
+python -m src.app            # or: voip-analyzer
 ```
 Run as Administrator/root for live capture.
 
@@ -33,7 +33,7 @@ Copy `.env.example` to `.env` and override any setting:
 | `VOIP_INTERFACE` | capture interface |
 
 Enrichment keys (optional): `VIRUSTOTAL_API_KEY`, `ABUSEIPDB_API_KEY`,
-`SHODAN_API_KEY`, `IPQS_API_KEY`, `NUMVERIFY_API_KEY`.
+`SHODAN_API_KEY`, `IPQS_API_KEY`.
 
 ## Quality gates
 ```bash
@@ -53,7 +53,7 @@ iscc installer.iss            # Windows installer (Inno Setup)
 ## Project layout
 ```
 src/
-  app.py / main.py   entry point, logging, disclaimer
+  app.py / main.py   entry point, logging, GUI bootstrap
   config.py          AppConfig
   models/            PacketInfo, IPInfo, SessionReport
   database/          SQLite connection + repositories
