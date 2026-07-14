@@ -98,7 +98,7 @@ cd voip-analyzer
 python -m venv venv
 source venv/bin/activate        # Windows: venv\Scripts\activate
 pip install -r requirements.txt
-python -m src.app
+python -m src.main
 ```
 
 > **Note:** On Linux/macOS, run with `sudo python -m src.app` for live capture access.
