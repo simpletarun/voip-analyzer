@@ -17,7 +17,7 @@
 
 ---
 
-## Demo
+## Preview
 
 ![Cutter Demo](assets/image.png)
 
