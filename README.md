@@ -150,23 +150,7 @@ iscc installer.iss
 > The standalone build is produced from `cutter.spec`, which bundles the Qt6
 > WebEngine runtime required for the interactive map.
 
----
 
-## Legal Notice
-
-> **FOR AUTHORIZED USE ONLY**
->
-> This tool is strictly for educational purposes and authorized network analysis. Intercepting, monitoring, or analyzing communications without explicit consent from all parties is illegal in many jurisdictions.
->
-> By using this software, you confirm:
-> - You have the legal right to monitor the target network
-> - You comply with all applicable local, state, and federal laws
-> - All captured data is stored locally on your device
-> - The developers assume no liability for misuse
->
-> **Privacy:** No phone numbers or message content are transmitted. Only public IP metadata is queried from ip-api.com.
-
----
 
 ## License
 
