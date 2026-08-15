@@ -11,22 +11,18 @@
   <img src="https://img.shields.io/badge/platform-Windows%20%7C%20Linux-lightgrey" alt="platform">
 </p>
 
-> Real-time WhatsApp / Signal / Telegram / Google Meet VoIP traffic analyzer with GUI, P2P peer detection, rich IP intelligence, and interactive geolocation mapping.
+> Real-time traffic analyzer with GUI, P2P peer detection, rich IP intelligence, and interactive geolocation mapping.
 
-**Cutter** is a forensic-grade network analysis tool that captures, classifies, and visualizes VoIP traffic on your local network. It is built for authorized security researchers, network administrators, and digital-forensics professionals.
+**Cutter** is a network analysis tool that captures and visualizes VoIP traffic on your local network.
 
 ---
 
 ## Table of Contents
 
 - [Features](#features)
-- [What's New in v3.2.0](#whats-new-in-v320)
 - [Download](#download)
 - [Installation](#installation)
 - [Quick Start](#quick-start)
-- [Configuration](#configuration)
-- [Enrichment Plugins](#enrichment-plugins)
-- [Export Formats](#export-formats)
 - [Project Structure](#project-structure)
 - [Development](#development)
 - [Legal Notice](#legal-notice)
@@ -38,25 +34,13 @@
 
 - **Live Packet Capture** — Real-time sniffing of VoIP traffic using Npcap (Windows) / libpcap (Linux).
 - **P2P Peer Detection** — Automatically identifies peer-to-peer call participants via STUN, DTLS, and SRTP analysis.
-- **Accurate Geolocation** — Geolocates IPs via ip-api.com with dual HTTP/HTTPS fallback, LRU caching, and rate limiting. Your own location is detected to city / state / country and pinned correctly on the map.
+- **Geolocation** — Geolocates IPs via ip-api.com with dual HTTP/HTTPS fallback, LRU caching, and rate limiting. Your own location is detected to city / state / country and pinned correctly on the map.
 - **Interactive Map** — Folium-powered map embedded in the UI with **4 basemap modes** (Dark, Satellite, Street, Light), a full-screen view with an Exit button, and a route/peer overlay.
 - **Rich IP Metadata** — ISP, ASN, organization, region, country, postal code, timezone, and currency shown in a detailed inspector.
 - **Multi-Protocol** — Detects WhatsApp, Signal, Telegram, and Google Meet traffic.
 - **Session Recording** — Logs every session to SQLite with CSV / JSON / HTML / Markdown / Excel / PDF export.
 - **Dark & Light Themes** — Switchable UI themes.
 - **Standalone Build** — Self-contained Windows installer; no Python install required.
-
----
-
-## What's New in v3.2.0
-
-- Fixed geolocation: the **YOU** marker now pins your real detected latitude/longitude (dual HTTP/HTTPS ip-api fallback).
-- Added **city / state / country** to location detection and the map popup.
-- Added **rich IP metadata** in the inspector (ISP, ASN, org, region, country, postal code, timezone, currency).
-- Upgraded the map with **4 basemap modes** (Dark, Satellite, Street, Light).
-- Added a **full-screen map** view with an Exit button (fixed the blank / 0×0 render bug).
-- Removed the startup legal-disclaimer popup — the app now opens straight to the Dashboard.
-- Hardened the PyInstaller build so all runtime dependencies (requests, scapy, folium, openpyxl, reportlab) are bundled.
 
 ---
 
@@ -113,38 +97,6 @@ python -m src.main
 4. Inspect packets, P2P peers, and IP intelligence in real time.
 5. Open the **Map** tab to visualize call routes; switch basemaps or go full-screen.
 6. Export a report from **File → Export Report**.
-
----
-
-## Configuration
-
-All settings live in `config/config.json` and can be overridden via a `.env` file (copy `.env.example` → `.env`). No secrets are stored in code.
-
-| Setting | Default | Purpose |
-|---------|---------|---------|
-| `api_timeout` | 5 | Per-request timeout for ip-api |
-| `cache_ttl_hours` | 24 | IP cache lifetime |
-| `max_api_calls_per_min` | 40 | API rate limit |
-| `theme` | dark | UI theme |
-| `data_retention_days` | 90 | Auto-purge old sessions |
-| `whatsapp_ports` | ranges | BPF capture filter |
-
-## Enrichment Plugins
-
-Optional third-party intelligence is loaded from `src/enrichment/` when the corresponding API key is present in `.env`:
-
-| Plugin | Env var | Adds |
-|--------|---------|------|
-| VirusTotal | `VIRUSTOTAL_API_KEY` | malicious/suspicious votes |
-| AbuseIPDB | `ABUSEIPDB_API_KEY` | abuse confidence + reports |
-| Shodan | `SHODAN_API_KEY` | open ports, org, OS |
-| IPQualityScore | `IPQS_API_KEY` | VPN/Proxy/Tor + fraud score |
-
-Lookups run **concurrently** and feed the abuse / fraud / VPN / Tor scoring.
-
-## Export Formats
-
-CSV, JSON, HTML, **Markdown**, **Excel**, and **PDF** — all timestamped and available from *File → Export Report*.
 
 ---
 
