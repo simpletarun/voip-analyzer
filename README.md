@@ -19,7 +19,7 @@
 
 ## Demo
 
-![Cutter Demo](assets/assets/VID.mp4)
+![Cutter Demo](assets/VID.mp4)
 
 *Live packet capture, P2P peer detection, and the analyzer UI in action.*
 
