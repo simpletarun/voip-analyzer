@@ -17,6 +17,14 @@
 
 ---
 
+## Demo
+
+![Cutter Demo](assets/demo.gif)
+
+*Live packet capture, P2P peer detection, and the analyzer UI in action.*
+
+---
+
 ## Table of Contents
 
 - [Features](#features)
@@ -120,7 +128,7 @@ voip-analyzer/
 ├── tests/                   # Test suite (pytest)
 ├── docs/                    # Architecture, plugin & DB documentation
 ├── config/                  # Default configuration
-├── assets/                  # Banner and UI assets
+├── assets/                  # Banner, demo GIF, and UI assets
 ├── cutter.spec              # PyInstaller spec for the standalone build
 ├── installer.iss            # Inno Setup script for the Windows installer
 ├── pyproject.toml          # Python project metadata
@@ -149,8 +157,6 @@ iscc installer.iss
 
 > The standalone build is produced from `cutter.spec`, which bundles the Qt6
 > WebEngine runtime required for the interactive map.
-
-
 
 ## License
 
