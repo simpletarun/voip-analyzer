@@ -74,6 +74,8 @@ class PacketCapturer:
         self._relay_ips: set = set()
         self._stun_seen: set = set()
         self._forced_types: dict[str, str] = {}
+        self._call_peer_ips: set = set()  # XOR-PEER-ADDRESS from STUN/TURN = actual remote user
+        self._media_peer_ips: set = set()  # RTP/RTCP endpoints
         self._mode: str = "UNKNOWN"
         self._signal_callbacks: dict[str, list] = defaultdict(list)
 
@@ -313,6 +315,12 @@ class PacketCapturer:
                             ip_type = "UNKNOWN"
                     except Exception:
                         ip_type = "UNKNOWN"
+                    # Force peer type for media traffic
+                    try:
+                        if peer in self._media_peer_ips or peer in self._call_peer_ips:
+                            ip_type = "P2P_PEER"
+                    except Exception:
+                        pass
 
                     try:
                         if ip_type == "P2P_PEER":
@@ -386,9 +394,49 @@ class PacketCapturer:
                         continue
                 except Exception:
                     continue
-            ip_type = "P2P_PEER" if kind == "peer" else "RELAY"
+            # XOR-PEER-ADDRESS is the actual remote user in a call - highest priority
+            if kind == "peer":
+                ip_type = "P2P_PEER"
+                self._call_peer_ips.add(ip)
+                self._forced_types[ip] = "P2P_PEER"
+            else:
+                ip_type = "RELAY"
             with self._lock:
-                if ip in self._all_ips or ip in self._stun_seen:
+                if ip in self._all_ips:
+                    # Update existing
+                    self._all_ips[ip]
+                    self._forced_types[ip] = ip_type
+                    if ip_type == "P2P_PEER":
+                        self._p2p_candidates.add(ip)
+                        if ip in self._relay_ips:
+                            self._relay_ips.discard(ip)
+                    else:
+                        self._relay_ips.add(ip)
+                    stats = self._ip_stats.get(ip)
+                    if stats:
+                        stats["stun"] += 1
+                        snapshot = dict(stats)
+                    else:
+                        snapshot = {"packets": 1, "bytes": 0, "inbound": 0, "outbound": 0}
+                    try:
+                        intel = self._all_ips[ip]
+                        self._emit("peer_update", ip, intel, snapshot, ip_type)
+                    except Exception:
+                        pass
+                    self._stun_seen.add(ip)
+                    try:
+                        self._update_mode()
+                    except Exception:
+                        pass
+                    detail = f"{labels[kind]} {ip}:{port}"
+                    if stun.get("software"):
+                        detail += f" app={stun['software']}"
+                    if stun.get("username"):
+                        detail += f" user={stun['username']}"
+                    try:
+                        self._emit("log", f"STUN {detail}")
+                    except Exception:
+                        pass
                     continue
                 self._stun_seen.add(ip)
                 try:

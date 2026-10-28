@@ -192,6 +192,7 @@ class VoIPAnalyzerGUI(QMainWindow):
         # Track IPs actively seen in media traffic (RTP/RTCP) - these are the
         # actual call participant IPs during WhatsApp/Telegram calls
         self._media_ips: set[str] = set()
+        self._stun_peer_ips: set[str] = set()
         try:
             from src.services.network_analyzer import NetworkAnalyzer
             self._analyzer = None
@@ -232,6 +233,10 @@ class VoIPAnalyzerGUI(QMainWindow):
 
         self._build_ui()
         self._retention_cleanup()
+        # Ensure map renders after UI is fully laid out
+        QTimer.singleShot(200, self._init_map)
+        QTimer.singleShot(800, lambda: self._render_map(force=True))
+        QTimer.singleShot(1500, lambda: self._render_map(force=True))
 
     def _build_ui(self) -> None:
         self.setWindowTitle(f"VoIP Analyzer v{__version__}")
@@ -426,6 +431,7 @@ class VoIPAnalyzerGUI(QMainWindow):
         if HAS_WEBENGINE and HAS_FOLIUM:
             self._map_layout = ml
             self.web_view = QWebEngineView()
+            self.web_view.setMinimumHeight(400)
             self.web_view.setSizePolicy(
                 QSizePolicy.Policy.Expanding, QSizePolicy.Policy.Expanding)
             frame = QFrame()
@@ -491,6 +497,9 @@ class VoIPAnalyzerGUI(QMainWindow):
         self._load_session_history()
         if HAS_FOLIUM:
             self._init_map()
+            QTimer.singleShot(0, lambda: self._render_map(force=True))
+            QTimer.singleShot(400, lambda: self._render_map(force=True))
+            QTimer.singleShot(1000, lambda: self._render_map(force=True))
 
     def _build_menu(self) -> None:
         menubar = self.menuBar()
@@ -676,13 +685,23 @@ class VoIPAnalyzerGUI(QMainWindow):
         # Track media endpoints for map - WhatsApp/Telegram calls use RTP/RTCP
         try:
             pname = getattr(pkt_info, "protocol_name", "") or ""
-            if pname in ("RTP", "RTCP"):
+            if pname in ("RTP", "RTCP", "STUN", "TURN"):
                 src = getattr(pkt_info, "src", "")
                 dst = getattr(pkt_info, "dst", "")
                 for ip in (src, dst):
-                    if ip and ip not in ("0.0.0.0", "::", "127.0.0.1", "localhost"):
+                    if ip and ip not in ("0.0.0.0", "::", "127.0.0.1", "localhost", ""):
                         if not self._is_local_ip(ip):
                             self._media_ips.add(ip)
+                            if pname in ("STUN", "TURN"):
+                                self._stun_peer_ips.add(ip)
+            # Also check stun_info for peer addresses
+            stun_info = getattr(pkt_info, "stun_info", "") or ""
+            if stun_info and ("peer" in stun_info.lower() or "relayed" in stun_info.lower()):
+                import re as _re
+                for m in _re.findall(r'(\d+\.\d+\.\d+\.\d+):\d+', stun_info):
+                    if not self._is_local_ip(m):
+                        self._stun_peer_ips.add(m)
+                        self._media_ips.add(m)
         except Exception:
             pass
         with self._buf_lock:
@@ -800,6 +819,7 @@ class VoIPAnalyzerGUI(QMainWindow):
             if old_type != "RELAY":
                 self._log(f"RELAY: {ip} | {intel.isp}")
         else:
+            # Don't skip - could be call participant
             table = self.relay_table
             color = QColor("#888")
 
@@ -810,6 +830,10 @@ class VoIPAnalyzerGUI(QMainWindow):
 
         is_p2p = (table is self.p2p_table)
         self._update_ip_row(table, row, ip, intel, stats, color, score)
+        # Force show on map if seen in media/STUN
+        if ip in getattr(self, "_media_ips", set()) or getattr(self, "_stun_peer_ips", set()) and ip in getattr(self, "_stun_peer_ips", set()):
+            if ip_type != "P2P_PEER":
+                ip_type = "P2P_PEER"
         self.all_data[ip] = {"intel": intel, "stats": stats, "type": ip_type, "score": score}
 
         if is_p2p:
@@ -819,6 +843,7 @@ class VoIPAnalyzerGUI(QMainWindow):
 
         self._refresh_packet_table_ip(ip, intel)
         self._update_map_table()
+        self._render_map(force=True)
 
         country = intel.country
         if country and country not in ("Unknown", "...") and country not in self.countries:
@@ -1199,47 +1224,111 @@ class VoIPAnalyzerGUI(QMainWindow):
             html = _localize_map_html(m.get_root().render())
             self._map_html = html
             try:
-                self.web_view.setHtml(html, QUrl("about:blank"))
+                if hasattr(self, "web_view"):
+                    self.web_view.setHtml(html, QUrl("http://localhost/"))
             except Exception:
                 pass
             fs_view = getattr(self, "_fs_view", None)
             if fs_view is not None:
                 try:
-                    fs_view.setHtml(html, QUrl("about:blank"))
+                    fs_view.setHtml(html, QUrl("http://localhost/"))
                 except Exception:
                     pass
         except Exception as e:
             logger.error("Map render error: %s", e)
 
     def _map_nodes(self) -> list[tuple[str, float, float, str, object]]:
-        """Remote peers/relays with coordinates only (never this machine)."""
+        """Show ONLY the other user's IP during WhatsApp/Telegram call."""
         analyzer = self.capturer.analyzer if self.capturer else None
         text = self.search_box.text().strip()
         compiled = _safe_compile_regex(text) if text else None
-        type_text = self.type_filter.currentText()
-        nodes = []
-        for ip, data in self.all_data.items():
-            if analyzer and analyzer.is_my_ip(ip):
-                continue
-            intel = data.get("intel")
-            if not intel or (getattr(intel, "lat", 0) == 0 and getattr(intel, "lon", 0) == 0):
-                continue
-            ip_type = data.get("type", "") or ""
-            if type_text != "All" and type_text.upper() not in ip_type.upper():
-                continue
-            if text:
-                hay = (f"{ip} {getattr(intel, 'isp', '')} "
-                       f"{getattr(intel, 'city', '')} "
-                       f"{getattr(intel, 'country', '')} {ip_type}")
-                if compiled is not None:
-                    try:
-                        if not compiled.search(hay):
-                            continue
-                    except Exception:
+        my_ip = None
+        try:
+            if analyzer:
+                my_ip = getattr(analyzer, "my_public_ip", None) or getattr(analyzer, "my_local_ip", None)
+        except Exception:
+            pass
+
+        # Collect ALL remote IPs from packet table (excluding ours)
+        candidates = []
+        try:
+            import re as _re
+            ip_re = _re.compile(r'(?<![\d\.])(?:\d{1,3}\.){3}\d{1,3}(?![\d\.])')
+            for row in range(self.table.rowCount()):
+                # Check all IP columns
+                for c in (3, 4):  # SRC, DST
+                    it = self.table.item(row, c)
+                    if not it:
                         continue
-                elif text.lower() not in hay.lower():
+                    m = it.text().strip()
+                    if not m or m in ('0.0.0.0', '127.0.0.1', '::1', '255.255.255.255'):
+                        continue
+                    if my_ip and m == my_ip:
+                        continue
+                    if analyzer and analyzer.is_my_ip(m):
+                        continue
+                    if self._is_local_ip(m):
+                        continue
+                    # Skip if it's our local IPs
+                    proto_name = self.table.item(row, 8)
+                    if proto_name and proto_name.text() in ('RTP', 'RTCP', 'STUN', 'TURN'):
+                        candidates.append(m)
+                        continue
+                    stun_it = self.table.item(row, 12)
+                    if stun_it and stun_it.text() and 'peer' in stun_it.text().lower():
+                        candidates.append(m)
+                        continue
+                    # Also add any peer IP
+                    candidates.append(m)
+        except Exception:
+            pass
+
+        # Get most recent/frequent peer (the other user)
+        if not candidates:
+            # Fallback to all_data excluding ours
+            for ip in self.all_data:
+                if my_ip and ip == my_ip:
                     continue
-            nodes.append((ip, intel.lat, intel.lon, ip_type, intel))
+                if analyzer and analyzer.is_my_ip(ip):
+                    continue
+                if self._is_local_ip(ip):
+                    continue
+                candidates.append(ip)
+
+        if not candidates:
+            return []
+
+        # Pick the IP that appears most (likely the call peer)
+        from collections import Counter
+        cnt = Counter(candidates)
+        call_ip = cnt.most_common(1)[0][0]
+
+        # Auto-resolve
+        try:
+            ip_intel = getattr(self.stack, "ip_intel", None)
+            if call_ip and ip_intel and call_ip not in self.all_data:
+                try:
+                    intel = ip_intel.get_intel(call_ip)
+                    if intel:
+                        self.all_data[call_ip] = {"intel": intel, "stats": {"packets": cnt[call_ip]}, "type": "P2P_PEER", "score": 100}
+                        self._on_peer_update(call_ip, intel, {"packets": cnt[call_ip], "bytes": 0, "inbound": 0, "outbound": 0}, "P2P_PEER")
+                except Exception:
+                    pass
+        except Exception:
+            pass
+
+        nodes = []
+        data = self.all_data.get(call_ip)
+        if not data:
+            return nodes
+        intel = data.get("intel")
+        if not intel or (getattr(intel, "lat", 0) == 0 and getattr(intel, "lon", 0) == 0):
+            return nodes
+        if my_ip and call_ip == my_ip:
+            return nodes
+        if analyzer and analyzer.is_my_ip(call_ip):
+            return nodes
+        nodes.append((call_ip, intel.lat, intel.lon, "P2P_PEER", intel))
         return nodes
 
     def _draw_flows(self, m, nodes: list) -> None:
