@@ -1,0 +1,24 @@
+# Build outputs
+dist/
+build/
+*.spec
+*.exe
+__pycache__/
+*.pyc
+
+# Environment
+.env
+
+# Runtime data/logs
+logs/
+data/
+
+# IDE
+.vscode/
+.idea/
+
+# Build artifacts
+*.egg-info/
+.pytest_cache/
+.mypy_cache/
+.ruff_cache/
