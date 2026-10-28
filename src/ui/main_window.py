@@ -189,6 +189,9 @@ class VoIPAnalyzerGUI(QMainWindow):
         self._my_city: str = "Unknown"
         self._my_region: str = "Unknown"
         self._my_country: str = "Unknown"
+        # Track IPs actively seen in media traffic (RTP/RTCP) - these are the
+        # actual call participant IPs during WhatsApp/Telegram calls
+        self._media_ips: set[str] = set()
         try:
             from src.services.network_analyzer import NetworkAnalyzer
             self._analyzer = None
@@ -670,6 +673,18 @@ class VoIPAnalyzerGUI(QMainWindow):
             self.capturer = None
 
     def _on_packet(self, pkt_info: PacketInfo) -> None:
+        # Track media endpoints for map - WhatsApp/Telegram calls use RTP/RTCP
+        try:
+            pname = getattr(pkt_info, "protocol_name", "") or ""
+            if pname in ("RTP", "RTCP"):
+                src = getattr(pkt_info, "src", "")
+                dst = getattr(pkt_info, "dst", "")
+                for ip in (src, dst):
+                    if ip and ip not in ("0.0.0.0", "::", "127.0.0.1", "localhost"):
+                        if not self._is_local_ip(ip):
+                            self._media_ips.add(ip)
+        except Exception:
+            pass
         with self._buf_lock:
             self._pkt_buffer.append(pkt_info)
             if len(self._pkt_buffer) > self.config.max_table_rows:
@@ -1197,8 +1212,7 @@ class VoIPAnalyzerGUI(QMainWindow):
             logger.error("Map render error: %s", e)
 
     def _map_nodes(self) -> list[tuple[str, float, float, str, object]]:
-        """Only show call participant IPs detected during WhatsApp/Telegram calls.
-        Never show this machine or unrelated IPs."""
+        """Remote peers/relays with coordinates only (never this machine)."""
         analyzer = self.capturer.analyzer if self.capturer else None
         text = self.search_box.text().strip()
         compiled = _safe_compile_regex(text) if text else None
@@ -1210,11 +1224,8 @@ class VoIPAnalyzerGUI(QMainWindow):
             intel = data.get("intel")
             if not intel or (getattr(intel, "lat", 0) == 0 and getattr(intel, "lon", 0) == 0):
                 continue
-            ip_type = (data.get("type", "") or "").upper()
-            # Only show actual call peers (detected via STUN/TURN/RTP)
-            if ip_type != "P2P_PEER":
-                continue
-            if type_text != "All" and type_text.upper() not in ip_type:
+            ip_type = data.get("type", "") or ""
+            if type_text != "All" and type_text.upper() not in ip_type.upper():
                 continue
             if text:
                 hay = (f"{ip} {getattr(intel, 'isp', '')} "
@@ -1228,7 +1239,7 @@ class VoIPAnalyzerGUI(QMainWindow):
                         continue
                 elif text.lower() not in hay.lower():
                     continue
-            nodes.append((ip, intel.lat, intel.lon, data.get("type", "P2P_PEER"), intel))
+            nodes.append((ip, intel.lat, intel.lon, ip_type, intel))
         return nodes
 
     def _draw_flows(self, m, nodes: list) -> None:
