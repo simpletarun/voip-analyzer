@@ -1238,98 +1238,79 @@ class VoIPAnalyzerGUI(QMainWindow):
             logger.error("Map render error: %s", e)
 
     def _map_nodes(self) -> list[tuple[str, float, float, str, object]]:
-        """Show ONLY the other user's IP during WhatsApp/Telegram call."""
+        """Show EXACTLY the same IP as the top row in P2P PEERS table."""
         analyzer = self.capturer.analyzer if self.capturer else None
-        text = self.search_box.text().strip()
-        compiled = _safe_compile_regex(text) if text else None
-        my_ip = None
+        call_ip = None
+
+        # Match 1:1 with P2P PEERS panel - take the top peer
         try:
-            if analyzer:
-                my_ip = getattr(analyzer, "my_public_ip", None) or getattr(analyzer, "my_local_ip", None)
+            if hasattr(self, "p2p_table") and self.p2p_table.rowCount() > 0:
+                ip_item = self.p2p_table.item(0, 0)
+                if ip_item:
+                    cand = ip_item.text().strip()
+                    if cand and cand not in ("", "N/A"):
+                        if self._is_local_ip(cand):
+                            pass
+                        elif analyzer and analyzer.is_my_ip(cand):
+                            pass
+                        else:
+                            call_ip = cand
         except Exception:
             pass
 
-        # Collect ALL remote IPs from packet table (excluding ours)
-        candidates = []
-        try:
-            import re as _re
-            ip_re = _re.compile(r'(?<![\d\.])(?:\d{1,3}\.){3}\d{1,3}(?![\d\.])')
-            for row in range(self.table.rowCount()):
-                # Check all IP columns
-                for c in (3, 4):  # SRC, DST
-                    it = self.table.item(row, c)
-                    if not it:
+        # Match 2: fallback to capturer's detected call peer
+        if not call_ip and self.capturer:
+            try:
+                for cip in getattr(self.capturer, "_call_peer_ips", set()) | getattr(self.capturer, "_p2p_candidates", set()) | getattr(self.capturer, "_forced_types", {}).keys():
+                    if not cip:
                         continue
-                    m = it.text().strip()
-                    if not m or m in ('0.0.0.0', '127.0.0.1', '::1', '255.255.255.255'):
+                    if self._is_local_ip(cip):
                         continue
-                    if my_ip and m == my_ip:
+                    if analyzer and analyzer.is_my_ip(cip):
                         continue
-                    if analyzer and analyzer.is_my_ip(m):
-                        continue
-                    if self._is_local_ip(m):
-                        continue
-                    # Skip if it's our local IPs
-                    proto_name = self.table.item(row, 8)
-                    if proto_name and proto_name.text() in ('RTP', 'RTCP', 'STUN', 'TURN'):
-                        candidates.append(m)
-                        continue
-                    stun_it = self.table.item(row, 12)
-                    if stun_it and stun_it.text() and 'peer' in stun_it.text().lower():
-                        candidates.append(m)
-                        continue
-                    # Also add any peer IP
-                    candidates.append(m)
-        except Exception:
-            pass
+                    # Prefer one that exists in p2p/all_data as P2P_PEER
+                    if cip in self.all_data and self.all_data[cip].get("type") == "P2P_PEER":
+                        call_ip = cip
+                        break
+                if not call_ip:
+                    for cip in getattr(self.capturer, "_p2p_candidates", set()):
+                        if cip and not self._is_local_ip(cip) and not (analyzer and analyzer.is_my_ip(cip)):
+                            call_ip = cip
+                            break
+            except Exception:
+                pass
 
-        # Get most recent/frequent peer (the other user)
-        if not candidates:
-            # Fallback to all_data excluding ours
-            for ip in self.all_data:
-                if my_ip and ip == my_ip:
-                    continue
-                if analyzer and analyzer.is_my_ip(ip):
-                    continue
-                if self._is_local_ip(ip):
-                    continue
-                candidates.append(ip)
-
-        if not candidates:
+        if not call_ip:
             return []
 
-        # Pick the IP that appears most (likely the call peer)
-        from collections import Counter
-        cnt = Counter(candidates)
-        call_ip = cnt.most_common(1)[0][0]
-
-        # Auto-resolve
+        # Ensure intel exists for this IP
         try:
             ip_intel = getattr(self.stack, "ip_intel", None)
-            if call_ip and ip_intel and call_ip not in self.all_data:
+            if call_ip not in self.all_data and ip_intel:
                 try:
                     intel = ip_intel.get_intel(call_ip)
                     if intel:
-                        self.all_data[call_ip] = {"intel": intel, "stats": {"packets": cnt[call_ip]}, "type": "P2P_PEER", "score": 100}
-                        self._on_peer_update(call_ip, intel, {"packets": cnt[call_ip], "bytes": 0, "inbound": 0, "outbound": 0}, "P2P_PEER")
+                        self.all_data[call_ip] = {"intel": intel, "stats": {"packets": 1}, "type": "P2P_PEER", "score": 100}
+                        self._on_peer_update(call_ip, intel, {"packets": 1, "bytes": 0, "inbound": 0, "outbound": 0}, "P2P_PEER")
                 except Exception:
                     pass
         except Exception:
             pass
 
-        nodes = []
         data = self.all_data.get(call_ip)
         if not data:
-            return nodes
+            return []
         intel = data.get("intel")
-        if not intel or (getattr(intel, "lat", 0) == 0 and getattr(intel, "lon", 0) == 0):
-            return nodes
-        if my_ip and call_ip == my_ip:
-            return nodes
+        if not intel:
+            return []
+        if (getattr(intel, "lat", 0) == 0 and getattr(intel, "lon", 0) == 0):
+            return []
+        if self._is_local_ip(call_ip):
+            return []
         if analyzer and analyzer.is_my_ip(call_ip):
-            return nodes
-        nodes.append((call_ip, intel.lat, intel.lon, "P2P_PEER", intel))
-        return nodes
+            return []
+
+        return [(call_ip, intel.lat, intel.lon, "P2P_PEER", intel)]
 
     def _draw_flows(self, m, nodes: list) -> None:
         """Draw traffic-flow lines between the remote nodes on the map."""
